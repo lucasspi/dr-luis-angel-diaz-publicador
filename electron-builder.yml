@@ -1,0 +1,18 @@
+appId: com.spirandeli.drluisangeldiaz.publicador
+productName: Publicador Dr. Luis
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+asarUnpack:
+  - resources/**
+mac:
+  target:
+    - dmg
+  category: public.app-category.productivity
+dmg:
+  artifactName: ${productName}-${version}.${ext}
+npmRebuild: false
