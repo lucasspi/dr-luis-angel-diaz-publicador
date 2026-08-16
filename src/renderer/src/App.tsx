@@ -15,13 +15,63 @@ type Estado =
   | { fase: 'exito'; url: string }
   | { fase: 'error'; mensaje: string }
 
+type EstadoUpdate =
+  | { fase: 'inactivo' }
+  | { fase: 'buscando' }
+  | { fase: 'no-disponible' }
+  | { fase: 'disponible'; version: string }
+  | { fase: 'descargando'; porcentaje: number }
+  | { fase: 'descargada'; version: string }
+  | { fase: 'error'; mensaje: string }
+
+function BarraActualizacion({ estado }: { estado: EstadoUpdate }): JSX.Element {
+  if (estado.fase === 'descargada') {
+    return (
+      <Button type="primary" size="small" onClick={() => window.api.instalarActualizacion()}>
+        Actualizar ahora (v{estado.version})
+      </Button>
+    )
+  }
+  if (estado.fase === 'buscando') {
+    return (
+      <Text type="secondary">
+        <Spin size="small" /> Buscando actualizaciones…
+      </Text>
+    )
+  }
+  if (estado.fase === 'disponible' || estado.fase === 'descargando') {
+    const porcentaje = estado.fase === 'descargando' ? estado.porcentaje : 0
+    return <Text type="secondary">Descargando actualización… {porcentaje}%</Text>
+  }
+  if (estado.fase === 'error') {
+    return (
+      <Space direction="vertical" size={2}>
+        <Text type="danger">No se pudo buscar actualizaciones.</Text>
+        <Button size="small" type="text" onClick={() => window.api.buscarActualizaciones()}>
+          Reintentar
+        </Button>
+      </Space>
+    )
+  }
+  return (
+    <Space direction="vertical" size={2}>
+      {estado.fase === 'no-disponible' && <Text type="secondary">Ya tienes la última versión.</Text>}
+      <Button size="small" type="text" onClick={() => window.api.buscarActualizaciones()}>
+        Buscar actualizaciones
+      </Button>
+    </Space>
+  )
+}
+
 export default function App(): JSX.Element {
   const [estado, setEstado] = useState<Estado>({ fase: 'cargando' })
+  const [estadoUpdate, setEstadoUpdate] = useState<EstadoUpdate>({ fase: 'inactivo' })
 
   useEffect(() => {
     window.api.obtenerConfig().then(({ configurado, configPath }) => {
       setEstado(configurado ? { fase: 'listo' } : { fase: 'sin-configurar', configPath })
     })
+    return window.api.onEstadoActualizacion(setEstadoUpdate)
   }, [])
 
   async function procesar(filePath: string): Promise<void> {
@@ -42,9 +92,13 @@ export default function App(): JSX.Element {
   return (
     <ConfigProvider locale={esES}>
       <div style={{ padding: 32, maxWidth: 560, margin: '0 auto' }}>
-        <Title level={3} style={{ textAlign: 'center' }}>
+        <Title level={3} style={{ textAlign: 'center', marginBottom: 8 }}>
           Publicador de reflexiones
         </Title>
+
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <BarraActualizacion estado={estadoUpdate} />
+        </div>
 
         {estado.fase === 'cargando' && (
           <div style={{ textAlign: 'center', padding: 48 }}>

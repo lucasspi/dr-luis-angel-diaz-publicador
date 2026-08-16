@@ -1,9 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
-import { autoUpdater } from 'electron-updater'
 import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { cargarConfig, getConfigPath } from './lib/config'
 import { procesarDocumento } from './lib/pipeline'
+import { buscarActualizaciones, configurarActualizaciones, instalarActualizacion } from './lib/updates'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -80,12 +80,21 @@ app.whenReady().then(() => {
     shell.openExternal(url)
   })
 
+  ipcMain.handle('buscar-actualizaciones', () => {
+    buscarActualizaciones()
+  })
+
+  ipcMain.handle('instalar-actualizacion', () => {
+    instalarActualizacion()
+  })
+
   createWindow()
 
-  if (!is.dev) {
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.error('Error buscando actualizaciones:', err)
-    })
+  if (mainWindow) {
+    configurarActualizaciones(mainWindow)
+    if (!is.dev) {
+      buscarActualizaciones()
+    }
   }
 
   app.on('activate', () => {

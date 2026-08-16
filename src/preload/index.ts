@@ -9,6 +9,14 @@ export interface ResultadoProceso {
   url: string
 }
 
+export type EstadoActualizacion =
+  | { fase: 'buscando' }
+  | { fase: 'disponible'; version: string }
+  | { fase: 'no-disponible' }
+  | { fase: 'descargando'; porcentaje: number }
+  | { fase: 'descargada'; version: string }
+  | { fase: 'error'; mensaje: string }
+
 const api = {
   obtenerConfig: (): Promise<ConfigInfo> => ipcRenderer.invoke('obtener-config'),
   elegirDocumento: (): Promise<string | null> => ipcRenderer.invoke('elegir-documento'),
@@ -20,7 +28,15 @@ const api = {
     ipcRenderer.on('progreso', listener)
     return () => ipcRenderer.removeListener('progreso', listener)
   },
-  getPathForFile: (file: File): string => webUtils.getPathForFile(file)
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  buscarActualizaciones: (): Promise<void> => ipcRenderer.invoke('buscar-actualizaciones'),
+  instalarActualizacion: (): Promise<void> => ipcRenderer.invoke('instalar-actualizacion'),
+  onEstadoActualizacion: (callback: (estado: EstadoActualizacion) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, estado: EstadoActualizacion): void =>
+      callback(estado)
+    ipcRenderer.on('estado-actualizacion', listener)
+    return () => ipcRenderer.removeListener('estado-actualizacion', listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)
