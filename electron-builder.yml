@@ -20,4 +20,5 @@ publish:
   provider: github
   owner: lucasspi
   repo: dr-luis-angel-diaz-publicador
+  releaseType: release
 npmRebuild: false
