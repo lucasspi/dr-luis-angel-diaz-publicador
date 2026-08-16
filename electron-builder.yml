@@ -12,7 +12,12 @@ asarUnpack:
 mac:
   target:
     - dmg
+    - zip
   category: public.app-category.productivity
 dmg:
   artifactName: ${productName}-${version}.${ext}
+publish:
+  provider: github
+  owner: lucasspi
+  repo: dr-luis-angel-diaz-publicador
 npmRebuild: false

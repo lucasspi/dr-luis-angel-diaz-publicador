@@ -84,3 +84,34 @@ Antes de que el primer push real dispare el deploy automático:
 - Los secrets del repo GitHub (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
   `CLOUDFRONT_DISTRIBUTION_ID`) deben estar configurados con el IAM
   least-privilege dedicado a esto (no el profile local de alcance amplio).
+
+## 8. Auto-actualización de la app
+
+La app revisa GitHub Releases al abrirse (`electron-updater`) y, si hay una
+versión nueva, la descarga sola en segundo plano — se instala en el
+próximo cierre de la app, sin que el Dr. Luis tenga que hacer nada. El repo
+del app es **público** (solo código, ningún secreto commiteado) para que
+esta revisión funcione sin ningún token embebido en el `.dmg` distribuido.
+
+Para publicar una versión nueva (tú, no el Dr. Luis):
+
+```bash
+cd ~/Work/dr-luis-angel-diaz-publicador
+# sube la versión en package.json (ej: 0.1.0 -> 0.2.0)
+export GH_TOKEN=$(gh auth token)
+npm run release:mac
+```
+
+Esto builda, firma (usa la identity "Developer ID Application" ya presente
+en este Mac) y sube el `.dmg`/`.zip` + los metadatos de actualización como
+un GitHub Release. La próxima vez que la app del Dr. Luis abra, se entera
+sola.
+
+**Nota honesta sobre notarización**: el build queda firmado, pero no
+notarizado por Apple (eso requiere credenciales de un Apple Developer
+Program aparte). Sin notarizar, el primer instalador puede pedir "Abrir de
+todos modos" en Gatekeeper (ya cubierto en el paso 5), y no hay garantía
+100% de que el ciclo de auto-update corra sin fricción en todas las
+versiones de macOS. Si en la práctica da problemas, notarizar es el
+siguiente paso — pero no lo asumí de entrada porque implica una cuenta de
+desarrollador Apple que no confirmamos que exista para este proyecto.
