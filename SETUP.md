@@ -3,6 +3,21 @@
 Checklist para hacer **una sola vez**, antes de dejarle el `.dmg` instalado.
 Todo esto lo hace Lucas — el Dr. Luis nunca necesita tocar una terminal.
 
+> **Atajo: casi todo esto lo hace [`scripts/setup-mac.sh`](scripts/setup-mac.sh).**
+> En el Mac del Dr. Luis, una sola línea:
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/lucasspi/dr-luis-angel-diaz-publicador/main/scripts/setup-mac.sh | bash
+> ```
+>
+> Cubre los pasos 1–5 (Homebrew, git/node, identidad git para los commits,
+> Codex + login, clone del sitio con el token, clave de fal.ai, `config.json`
+> e instalación del `.dmg` del último release). Es idempotente — se puede
+> correr de nuevo y salta lo que ya está hecho. Solo pide lo que no puede
+> adivinar: el token de GitHub, la clave de fal.ai y el login de Codex.
+> Los pasos 6 (prueba de punta a punta) y 7 (infra AWS, del lado de Lucas)
+> siguen siendo manuales. El detalle de cada paso queda documentado abajo.
+
 ## 1. Prerrequisitos en el Mac
 
 ```bash
