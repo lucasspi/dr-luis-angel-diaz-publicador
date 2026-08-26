@@ -5,6 +5,7 @@ import matter from 'gray-matter'
 export interface DatosPost {
   titulo: string
   fecha: string
+  categoria: string
   versiculo: string
   resumen: string
   slug: string
@@ -31,6 +32,7 @@ export async function escribirPost(
     publicado: true,
     resumen: datos.resumen
   }
+  if (datos.categoria) frontmatter.categoria = datos.categoria
   if (datos.versiculo) frontmatter.versiculo = datos.versiculo
   if (datos.imagenRelativa) frontmatter.imagen = datos.imagenRelativa
 

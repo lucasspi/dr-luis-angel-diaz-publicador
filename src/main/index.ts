@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { cargarConfig, getConfigPath } from './lib/config'
+import { listarCategorias } from './lib/categorias'
 import { procesarDocumento } from './lib/pipeline'
 import { buscarActualizaciones, configurarActualizaciones, instalarActualizacion } from './lib/updates'
 
@@ -67,13 +68,19 @@ app.whenReady().then(() => {
     return resultado.filePaths[0]
   })
 
-  ipcMain.handle('procesar-documento', async (_event, filePath: string) => {
+  ipcMain.handle('procesar-documento', async (_event, filePath: string, categoria: string) => {
     if (!mainWindow) throw new Error('Ventana no disponible.')
     const config = await cargarConfig()
     if (!config) {
       throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
     }
-    return procesarDocumento(filePath, config, mainWindow)
+    return procesarDocumento(filePath, categoria ?? '', config, mainWindow)
+  })
+
+  ipcMain.handle('listar-categorias', async () => {
+    const config = await cargarConfig()
+    if (!config) return []
+    return listarCategorias(config.repoPath)
   })
 
   ipcMain.handle('abrir-enlace', (_event, url: string) => {

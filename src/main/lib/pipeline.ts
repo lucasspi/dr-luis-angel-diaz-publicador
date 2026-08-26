@@ -17,6 +17,7 @@ function hoyISO(): string {
 
 export async function procesarDocumento(
   filePath: string,
+  categoria: string,
   config: AppConfig,
   ventana: BrowserWindow
 ): Promise<{ url: string }> {
@@ -44,6 +45,7 @@ export async function procesarDocumento(
   const { mdPath } = await escribirPost(config.repoPath, {
     titulo: formateada.titulo,
     fecha,
+    categoria: categoria.trim(),
     versiculo: formateada.versiculo,
     resumen: formateada.resumen,
     slug: formateada.slug,

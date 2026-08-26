@@ -20,8 +20,9 @@ export type EstadoActualizacion =
 const api = {
   obtenerConfig: (): Promise<ConfigInfo> => ipcRenderer.invoke('obtener-config'),
   elegirDocumento: (): Promise<string | null> => ipcRenderer.invoke('elegir-documento'),
-  procesarDocumento: (filePath: string): Promise<ResultadoProceso> =>
-    ipcRenderer.invoke('procesar-documento', filePath),
+  listarCategorias: (): Promise<string[]> => ipcRenderer.invoke('listar-categorias'),
+  procesarDocumento: (filePath: string, categoria: string): Promise<ResultadoProceso> =>
+    ipcRenderer.invoke('procesar-documento', filePath, categoria),
   abrirEnlace: (url: string): Promise<void> => ipcRenderer.invoke('abrir-enlace', url),
   onProgreso: (callback: (mensaje: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, mensaje: string): void => callback(mensaje)
