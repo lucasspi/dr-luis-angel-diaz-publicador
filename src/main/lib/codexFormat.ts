@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
+import { accessSync, constants } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 
 export interface ReflexionFormateada {
@@ -86,10 +87,29 @@ export async function formatearConCodex(textoBruto: string): Promise<ReflexionFo
   }
 }
 
+// La app empaquetada hereda el PATH de launchd (/usr/bin:/bin:/usr/sbin:/sbin),
+// donde codex nunca está — hay que buscarlo en sus ubicaciones habituales.
+function resolverCodex(): string {
+  const candidatos = [
+    '/opt/homebrew/bin/codex',
+    '/usr/local/bin/codex',
+    path.join(homedir(), '.local', 'bin', 'codex')
+  ]
+  for (const ruta of candidatos) {
+    try {
+      accessSync(ruta, constants.X_OK)
+      return ruta
+    } catch {
+      // sigue con el próximo candidato
+    }
+  }
+  return 'codex'
+}
+
 function runCodex(cwd: string): Promise<void> {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(
-      'codex',
+      resolverCodex(),
       [
         'exec',
         '--skip-git-repo-check',
@@ -103,7 +123,11 @@ function runCodex(cwd: string): Promise<void> {
         'output.json',
         PROMPT
       ],
-      { cwd }
+      // stdin en 'ignore': con un pipe abierto, codex espera un EOF que nunca
+      // llega ("Reading additional input from stdin...") y se cuelga para
+      // siempre. stdout en 'ignore' porque nadie lo lee — un pipe lleno (64 KB)
+      // también congelaría el proceso.
+      { cwd, stdio: ['ignore', 'ignore', 'pipe'] }
     )
 
     let stderr = ''

@@ -18,8 +18,9 @@ REPO_APP="lucasspi/dr-luis-angel-diaz-publicador"
 DIR_CLONE="$HOME/Sitios/dr-luis-angel-diaz"
 APP_NAME="Publicador Dr. Luis"
 APP_PATH="/Applications/$APP_NAME.app"
-# app.getPath('userData') de la app empaquetada (productName en electron-builder.yml)
-CONFIG_DIR="$HOME/Library/Application Support/$APP_NAME"
+# app.getPath('userData') de la app empaquetada — OJO: Electron usa el "name"
+# del package.json (dr-luis-angel-diaz-publicador), NO el productName.
+CONFIG_DIR="$HOME/Library/Application Support/dr-luis-angel-diaz-publicador"
 CONFIG_JSON="$CONFIG_DIR/config.json"
 
 azul()  { printf '\n\033[1;34m== %s ==\033[0m\n' "$1"; }

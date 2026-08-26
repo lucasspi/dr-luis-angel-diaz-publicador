@@ -233,6 +233,9 @@ export default function App(): JSX.Element {
                 {paso}
               </Paragraph>
             ))}
+            <Paragraph type="secondary" style={{ textAlign: 'center', marginTop: 16 }}>
+              Todo el proceso suele tardar 2–4 minutos. No cierres la aplicación.
+            </Paragraph>
           </Space>
         )}
 
