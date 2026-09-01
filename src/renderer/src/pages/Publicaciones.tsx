@@ -24,6 +24,26 @@ const TODOS = '__todos__'
 
 type Rango = [Dayjs, Dayjs] | null
 
+// Colores de los chips de tema. Arbitrarios y sin guardar en ningún lado: se
+// reparten por posición en la lista ordenada de temas, no por hash del nombre.
+// Con 13 temas y 11 colores algún hash siempre choca, y hacía que las tres
+// "Capacitación…" salieran del mismo color, que es justo lo que se nota. Por
+// posición se usan los 11 y las dos repeticiones quedan lejísimos en el abecé.
+// El precio: si nace un tema nuevo, los de después cambian de color. Barato.
+const PALETA = [
+  'blue',
+  'green',
+  'purple',
+  'orange',
+  'cyan',
+  'magenta',
+  'geekblue',
+  'lime',
+  'volcano',
+  'gold',
+  'red'
+]
+
 // Los mismos atajos del calendario de referencia, en el orden en que se usan:
 // primero lo reciente, después el corte por mes y año.
 //
@@ -136,6 +156,11 @@ export default function Publicaciones(): JSX.Element {
     return [...vistas].sort((a, b) => a.localeCompare(b, 'es'))
   }, [publicaciones])
 
+  const colorPorTema = useMemo(
+    () => new Map(categorias.map((c, i) => [c, PALETA[i % PALETA.length]])),
+    [categorias]
+  )
+
   const visibles = useMemo(() => {
     const termino = normalizar(busqueda.trim())
     // `fecha` ya viene normalizada a YYYY-MM-DD, así que comparar como texto
@@ -210,7 +235,7 @@ export default function Publicaciones(): JSX.Element {
       dataIndex: 'categoria',
       key: 'categoria',
       width: 220,
-      render: (cat: string) => (cat ? <Tag>{cat}</Tag> : null)
+      render: (cat: string) => (cat ? <Tag color={colorPorTema.get(cat)}>{cat}</Tag> : null)
     },
     {
       title: '',
@@ -291,9 +316,18 @@ export default function Publicaciones(): JSX.Element {
           value={categoria}
           onChange={setCategoria}
           style={{ width: 220 }}
+          // El chip del desplegable va del mismo color que el de la tabla, para
+          // que se vea de un golpe qué filas va a dejar el filtro.
           options={[
             { value: TODOS, label: 'Todos los temas' },
-            ...categorias.map((c) => ({ value: c, label: c }))
+            ...categorias.map((c) => ({
+              value: c,
+              label: (
+                <Tag color={colorPorTema.get(c)} style={{ marginInlineEnd: 0 }}>
+                  {c}
+                </Tag>
+              )
+            }))
           ]}
         />
         {filtrando && (
