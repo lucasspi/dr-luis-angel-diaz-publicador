@@ -1,7 +1,7 @@
 {
   "name": "dr-luis-angel-diaz-publicador",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Publicador de reflexiones para drluisangeldiaz.com",
   "main": "./out/main/index.js",
   "author": "Lucas Spirandeli",
