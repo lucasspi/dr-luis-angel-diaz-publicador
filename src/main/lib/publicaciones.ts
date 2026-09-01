@@ -4,8 +4,11 @@ import matter from 'gray-matter'
 import { urlImagen } from './imagenes'
 import { slugificarCategoria } from './slug'
 import { leerTemas, type Tema } from './temas'
+import { leerCatalogo } from './reflexiones'
 
 export interface Publicacion {
+  /** Id en el catálogo — la clave estable, no la URL. */
+  id: string
   slug: string
   titulo: string
   fecha: string
@@ -82,6 +85,9 @@ export async function listarPublicaciones(repoPath: string): Promise<Publicacion
   }
 
   const temas = await leerTemas(repoPath)
+  // La URL sale del catálogo, igual que en el sitio: derivarla del nombre del
+  // archivo por segunda vez sería otra fuente que puede discrepar.
+  const porArchivo = new Map((await leerCatalogo(repoPath)).map((r) => [r.archivo, r]))
   const porId = new Map(temas.map((t) => [t.id, t]))
   const porSlug = new Map(temas.map((t) => [t.slug, t]))
 
@@ -92,10 +98,12 @@ export async function listarPublicaciones(repoPath: string): Promise<Publicacion
       const { data } = matter(await readFile(path.join(dir, archivo), 'utf-8'))
       if (data?.publicado === false) continue
 
-      const slug = slugDesdeArchivo(archivo)
+      const entrada = porArchivo.get(archivo)
+      const slug = entrada?.slug ?? slugDesdeArchivo(archivo)
       const imagen = texto(data?.imagen)
       const tema = resolverTema(data, porId, porSlug)
       publicaciones.push({
+        id: entrada?.id ?? slug,
         slug,
         titulo: texto(data?.titulo) || slug,
         fecha: fechaISO(data?.fecha, archivo),

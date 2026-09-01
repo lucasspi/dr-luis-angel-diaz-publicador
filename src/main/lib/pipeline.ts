@@ -5,6 +5,7 @@ import { formatearConCodex } from './codexFormat'
 import { generarImagen } from './imageGen'
 import { escribirPost } from './writePost'
 import { asegurarTema, RUTA_TEMAS } from './temas'
+import { registrarReflexion, RUTA_CATALOGO, slugUnico } from './reflexiones'
 import { publicar } from './publish'
 import type { AppConfig } from './config'
 
@@ -36,8 +37,11 @@ export async function procesarDocumento(
   const formateada = await formatearConCodex(textoBruto)
 
   const fecha = hoyISO()
-  const imagenRelativa = `/img/${formateada.slug}.jpg`
-  const imagenAbsoluta = path.join(config.repoPath, 'public', 'img', `${formateada.slug}.jpg`)
+  // La dirección se reserva antes de escribir nada: si ya existe una reflexión
+  // con ese slug (aunque sea de otro día), esta se lleva un índice al final.
+  const slug = await slugUnico(config.repoPath, formateada.slug)
+  const imagenRelativa = `/img/${slug}.jpg`
+  const imagenAbsoluta = path.join(config.repoPath, 'public', 'img', `${slug}.jpg`)
 
   avisar('Generando la imagen de portada…')
   await generarImagen(formateada.image_prompt, config.falApiKey, imagenAbsoluta)
@@ -54,18 +58,25 @@ export async function procesarDocumento(
     temaId,
     versiculo: formateada.versiculo,
     resumen: formateada.resumen,
-    slug: formateada.slug,
+    slug,
     cuerpo_markdown: formateada.cuerpo_markdown,
     imagenRelativa
+  })
+
+  await registrarReflexion(config.repoPath, {
+    id: slug,
+    slug,
+    archivo: path.basename(mdPath)
   })
 
   avisar('Publicando…')
   const archivos = [
     path.relative(config.repoPath, mdPath),
-    path.relative(config.repoPath, imagenAbsoluta)
+    path.relative(config.repoPath, imagenAbsoluta),
+    RUTA_CATALOGO
   ]
   if (temaNuevo) archivos.push(RUTA_TEMAS)
   await publicar(config.repoPath, formateada.titulo, archivos)
 
-  return { url: `https://drluisangeldiaz.com/${formateada.slug}` }
+  return { url: `https://drluisangeldiaz.com/${slug}` }
 }

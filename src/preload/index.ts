@@ -19,6 +19,7 @@ export interface Tema {
 }
 
 export interface Publicacion {
+  id: string
   slug: string
   titulo: string
   fecha: string
@@ -30,6 +31,14 @@ export interface Publicacion {
   thumbUrl: string
   url: string
   archivo: string
+}
+
+export interface ResultadoBorrado {
+  archivo: string
+  /** La portada, si se fue con la reflexión. Vacío si se quedó. */
+  imagenBorrada: string
+  /** Por qué la portada se quedó: la usan estos otros posts. */
+  imagenCompartidaCon: string[]
 }
 
 export interface ResultadoPublicaciones {
@@ -55,6 +64,8 @@ const api = {
   listarTemas: (): Promise<Tema[]> => ipcRenderer.invoke('listar-temas'),
   renombrarTema: (id: string, nombreNuevo: string): Promise<Tema> =>
     ipcRenderer.invoke('renombrar-tema', id, nombreNuevo),
+  borrarPublicacion: (archivo: string, titulo: string): Promise<ResultadoBorrado> =>
+    ipcRenderer.invoke('borrar-publicacion', archivo, titulo),
   procesarDocumento: (filePath: string, categoria: string): Promise<ResultadoProceso> =>
     ipcRenderer.invoke('procesar-documento', filePath, categoria),
   abrirEnlace: (url: string): Promise<void> => ipcRenderer.invoke('abrir-enlace', url),

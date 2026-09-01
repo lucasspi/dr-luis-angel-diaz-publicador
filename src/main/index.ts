@@ -5,6 +5,7 @@ import { cargarConfig, getConfigPath } from './lib/config'
 import { listarCategorias } from './lib/categorias'
 import { listarPublicaciones } from './lib/publicaciones'
 import { leerTemas, renombrarTema, RUTA_TEMAS } from './lib/temas'
+import { borrarPublicacion } from './lib/borrar'
 import { confirmar } from './lib/publish'
 import { sincronizar } from './lib/git'
 import { registrarEsquemaImagen, servirImagenes } from './lib/imagenes'
@@ -142,6 +143,20 @@ app.whenReady().then(() => {
     const tema = await renombrarTema(config.repoPath, id, nombreNuevo)
     await confirmar(config.repoPath, `tema: «${tema.nombre}»`, [RUTA_TEMAS])
     return tema
+  })
+
+  ipcMain.handle('borrar-publicacion', async (_event, archivo: string, titulo: string) => {
+    const config = await cargarConfig()
+    if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
+
+    // Sincronizar antes: si la reflexión ya se borró desde otro sitio, o si hay
+    // publicaciones nuevas, mejor enterarse ahora que a mitad del push.
+    await sincronizar(config.repoPath)
+
+    const resultado = await borrarPublicacion(config.repoPath, archivo)
+    // `git rm` ya dejó el borrado en el índice; confirmar solo commitea y sube.
+    await confirmar(config.repoPath, `borrar: ${titulo}`, [])
+    return resultado
   })
 
   ipcMain.handle('abrir-enlace', (_event, url: string) => {

@@ -1,12 +1,18 @@
 import { git } from './git'
 
-/** Deja los archivos en master y los sube. Si el push choca, rebasa y reintenta. */
+/**
+ * Deja los archivos en master y los sube. Si el push choca, rebasa y reintenta.
+ *
+ * `archivos` vacío es válido y significa "commitea lo que ya está en el índice"
+ * — es el caso del borrado, donde `git rm` ya dejó el cambio preparado. Con
+ * lista vacía no se llama a `git add`, que sin argumentos falla.
+ */
 export async function confirmar(
   repoPath: string,
   mensaje: string,
   archivos: string[]
 ): Promise<void> {
-  await git(['add', ...archivos], repoPath)
+  if (archivos.length > 0) await git(['add', ...archivos], repoPath)
   await git(['commit', '-m', mensaje], repoPath)
 
   try {

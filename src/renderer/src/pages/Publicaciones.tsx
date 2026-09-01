@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, DatePicker, Input, Result, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
-import { ExportOutlined } from '@ant-design/icons'
+import { DeleteOutlined, ExportOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { Publicacion } from '../../../preload'
 import { usePublicaciones } from '../datos/publicaciones'
 import { CabeceraLista } from '../components/CabeceraLista'
 import { Portada } from '../components/Portada'
+import { DialogoBorrar, type Consecuencias } from '../components/DialogoBorrar'
 import { fechaLegible, normalizar } from '../lib/formato'
 
 const { RangePicker } = DatePicker
@@ -47,6 +48,7 @@ export default function Publicaciones(): JSX.Element {
   const [rango, setRango] = useState<Rango>(null)
   const [categoria, setCategoria] = useState(TODOS)
   const [pagina, setPagina] = useState(1)
+  const [borrando, setBorrando] = useState<Publicacion | null>(null)
 
   const visibles = useMemo(() => {
     const termino = normalizar(busqueda.trim())
@@ -62,6 +64,19 @@ export default function Publicaciones(): JSX.Element {
       return normalizar(`${p.titulo} ${p.resumen} ${p.categoria}`).includes(termino)
     })
   }, [publicaciones, busqueda, rango, categoria])
+
+  // Lo que el usuario no puede saber mirando la fila: si la URL la hereda un
+  // duplicado, si la portada la usa otro post, si el tema se queda vacío.
+  const consecuencias = useMemo<Consecuencias | null>(() => {
+    if (!borrando) return null
+    const resto = (publicaciones ?? []).filter((p) => p.archivo !== borrando.archivo)
+    return {
+      urlCompartidaCon: resto.find((p) => p.slug === borrando.slug) ?? null,
+      portadaCompartida: Boolean(borrando.imagen) && resto.some((p) => p.imagen === borrando.imagen),
+      ultimaDelTema:
+        Boolean(borrando.temaId) && !resto.some((p) => p.temaId === borrando.temaId)
+    }
+  }, [borrando, publicaciones])
 
   // Con menos resultados, la página en la que estabas puede dejar de existir.
   useEffect(() => {
@@ -120,18 +135,29 @@ export default function Publicaciones(): JSX.Element {
     },
     {
       title: '',
-      key: 'accion',
-      width: 72,
+      key: 'acciones',
+      width: 96,
       align: 'right',
       render: (_, p) => (
-        <Button
-          type="text"
-          size="small"
-          icon={<ExportOutlined />}
-          onClick={() => window.api.abrirEnlace(p.url)}
-        >
-          Ver
-        </Button>
+        <Space size={0}>
+          <Tooltip title="Ver en el sitio">
+            <Button
+              type="text"
+              size="small"
+              icon={<ExportOutlined />}
+              onClick={() => window.api.abrirEnlace(p.url)}
+            />
+          </Tooltip>
+          <Tooltip title="Borrar del sitio">
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => setBorrando(p)}
+            />
+          </Tooltip>
+        </Space>
       )
     }
   ]
@@ -195,8 +221,11 @@ export default function Publicaciones(): JSX.Element {
         )}
       </Space>
 
+      {/* rowKey por archivo y no por slug: hay pares de reflexiones que
+          comparten slug (mismo título, fechas distintas) y React acabaría con
+          claves repetidas. El archivo sí es único. */}
       <Table<Publicacion>
-        rowKey="slug"
+        rowKey="archivo"
         size="small"
         loading={publicaciones === null}
         columns={columnas}
@@ -216,6 +245,13 @@ export default function Publicaciones(): JSX.Element {
             ? 'Ninguna reflexión coincide con los filtros'
             : 'Todavía no hay reflexiones publicadas'
         }}
+      />
+
+      <DialogoBorrar
+        publicacion={borrando}
+        consecuencias={consecuencias}
+        onCerrar={() => setBorrando(null)}
+        onListo={() => recargar(false)}
       />
     </Space>
   )
