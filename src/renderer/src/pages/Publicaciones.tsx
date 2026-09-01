@@ -230,20 +230,15 @@ export default function Publicaciones(): JSX.Element {
     }
   ]
 
-  const total = publicaciones?.length ?? 0
   const filtrando = busqueda.trim() !== '' || rango !== null || categoria !== TODOS
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Space style={{ width: '100%', justifyContent: 'space-between' }} align="baseline" wrap>
+        {/* Solo lo que la tabla está mostrando: con filtros puestos, el total
+            del sitio obliga a hacer la resta mentalmente y no dice nada útil. */}
         <Title level={5} style={{ margin: 0 }}>
-          {total} reflexion{total === 1 ? '' : 'es'} en el sitio
-          {filtrando && (
-            <Text type="secondary" style={{ fontWeight: 400 }}>
-              {' '}
-              · {visibles.length} coincide{visibles.length === 1 ? '' : 'n'}
-            </Text>
-          )}
+          {visibles.length} reflexion{visibles.length === 1 ? '' : 'es'}
         </Title>
         <Button
           icon={<ReloadOutlined />}
