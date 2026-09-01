@@ -4,6 +4,8 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { cargarConfig, getConfigPath } from './lib/config'
 import { listarCategorias } from './lib/categorias'
 import { listarPublicaciones } from './lib/publicaciones'
+import { leerTemas, renombrarTema, RUTA_TEMAS } from './lib/temas'
+import { confirmar } from './lib/publish'
 import { sincronizar } from './lib/git'
 import { registrarEsquemaImagen, servirImagenes } from './lib/imagenes'
 import { procesarDocumento } from './lib/pipeline'
@@ -120,6 +122,26 @@ app.whenReady().then(() => {
       }
     }
     return { publicaciones: await listarPublicaciones(config.repoPath), avisoSync }
+  })
+
+  ipcMain.handle('listar-temas', async () => {
+    const config = await cargarConfig()
+    if (!config) return []
+    return leerTemas(config.repoPath)
+  })
+
+  ipcMain.handle('renombrar-tema', async (_event, id: string, nombreNuevo: string) => {
+    const config = await cargarConfig()
+    if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
+
+    // Sincronizar primero: si el Dr. Luis publicó desde su Mac, el registro
+    // local puede no tener el tema recién estrenado, y lo reescribiríamos
+    // encima. Si el pull falla se aborta — mejor no renombrar que pisar algo.
+    await sincronizar(config.repoPath)
+
+    const tema = await renombrarTema(config.repoPath, id, nombreNuevo)
+    await confirmar(config.repoPath, `tema: «${tema.nombre}»`, [RUTA_TEMAS])
+    return tema
   })
 
   ipcMain.handle('abrir-enlace', (_event, url: string) => {

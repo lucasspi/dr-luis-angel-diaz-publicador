@@ -1,11 +1,9 @@
-import { readdir, readFile } from 'node:fs/promises'
-import path from 'node:path'
-import matter from 'gray-matter'
-import { slugificarCategoria as normalizar } from './slug'
+import { leerTemas } from './temas'
+import { slugificarCategoria } from './slug'
 
 // Temas que siempre se ofrecen como chips, aunque ningún post los use aún —
-// el repertorio típico de un pastor. En el sitio una categoría solo gana
-// página /categoria/{slug} cuando algún post publicado la usa.
+// el repertorio típico de un pastor. Solo entran de verdad en el registro
+// (content/temas.json) cuando una reflexión los estrena.
 const CATEGORIAS_SUGERIDAS = [
   'Ministerio',
   'Oración',
@@ -16,36 +14,24 @@ const CATEGORIAS_SUGERIDAS = [
   'Predicación'
 ]
 
-// Las categorías ofrecidas al soltar un documento: las que ya aparecen en el
-// frontmatter de content/posts/*.md del clone local (su grafía gana, para que
-// el Dr. Luis reutilice temas en vez de inventar variantes sin querer),
-// más las sugeridas que aún no se hayan usado.
+/**
+ * Los nombres de tema que se ofrecen al soltar un documento: los del registro
+ * (para que el Dr. Luis reutilice en vez de inventar variantes sin querer),
+ * más las sugerencias que todavía nadie ha usado.
+ *
+ * Devuelve nombres y no ids a propósito: al publicar se escribe lo que él
+ * eligió o tecleó, y `asegurarTema` se encarga de traducirlo a un id — dando
+ * de alta el tema si hace falta.
+ */
 export async function listarCategorias(repoPath: string): Promise<string[]> {
-  const dir = path.join(repoPath, 'content', 'posts')
-  let archivos: string[] = []
-  try {
-    archivos = await readdir(dir)
-  } catch {
-    // sin clone legible, quedan solo las sugeridas
-  }
-
   const porClave = new Map<string, string>()
-  for (const archivo of archivos) {
-    if (!archivo.endsWith('.md')) continue
-    try {
-      const parsed = matter(await readFile(path.join(dir, archivo), 'utf-8'))
-      const categoria = parsed.data?.categoria
-      if (typeof categoria === 'string' && categoria.trim()) {
-        const limpia = categoria.trim()
-        if (!porClave.has(normalizar(limpia))) porClave.set(normalizar(limpia), limpia)
-      }
-    } catch {
-      // un .md malformado no debe tumbar la lista
-    }
+
+  for (const tema of await leerTemas(repoPath)) {
+    if (tema.nombre?.trim()) porClave.set(tema.slug, tema.nombre.trim())
   }
 
   for (const sugerida of CATEGORIAS_SUGERIDAS) {
-    const clave = normalizar(sugerida)
+    const clave = slugificarCategoria(sugerida)
     if (!porClave.has(clave)) porClave.set(clave, sugerida)
   }
 

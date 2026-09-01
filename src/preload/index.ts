@@ -9,10 +9,20 @@ export interface ResultadoProceso {
   url: string
 }
 
+export interface Tema {
+  /** La clave. Es lo que el frontmatter referencia. No cambia nunca. */
+  id: string
+  /** La etiqueta que ve el lector — lo único que edita un renombrado. */
+  nombre: string
+  /** La URL: /categoria/<slug>. Se queda quieta aunque cambie el nombre. */
+  slug: string
+}
+
 export interface Publicacion {
   slug: string
   titulo: string
   fecha: string
+  temaId: string
   categoria: string
   categoriaSlug: string
   resumen: string
@@ -42,6 +52,9 @@ const api = {
   listarCategorias: (): Promise<string[]> => ipcRenderer.invoke('listar-categorias'),
   listarPublicaciones: (sincronizarAntes = false): Promise<ResultadoPublicaciones> =>
     ipcRenderer.invoke('listar-publicaciones', sincronizarAntes),
+  listarTemas: (): Promise<Tema[]> => ipcRenderer.invoke('listar-temas'),
+  renombrarTema: (id: string, nombreNuevo: string): Promise<Tema> =>
+    ipcRenderer.invoke('renombrar-tema', id, nombreNuevo),
   procesarDocumento: (filePath: string, categoria: string): Promise<ResultadoProceso> =>
     ipcRenderer.invoke('procesar-documento', filePath, categoria),
   abrirEnlace: (url: string): Promise<void> => ipcRenderer.invoke('abrir-enlace', url),

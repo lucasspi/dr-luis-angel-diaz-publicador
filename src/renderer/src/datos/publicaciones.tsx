@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { Publicacion } from '../../../preload'
+import type { Publicacion, Tema } from '../../../preload'
 
 // Colores de los chips de tema. Arbitrarios y sin guardar en ningún lado: se
 // reparten por posición en la lista ordenada de temas, no por hash del nombre.
@@ -24,6 +24,8 @@ const PALETA = [
 
 interface Datos {
   publicaciones: Publicacion[] | null
+  /** El registro de content/temas.json — la identidad de cada tema. */
+  temas: Tema[]
   error: string
   avisoSync: string
   sincronizando: boolean
@@ -44,6 +46,7 @@ const Contexto = createContext<Datos | null>(null)
  */
 export function ProveedorPublicaciones({ children }: { children: ReactNode }): JSX.Element {
   const [publicaciones, setPublicaciones] = useState<Publicacion[] | null>(null)
+  const [temas, setTemas] = useState<Tema[]>([])
   const [error, setError] = useState('')
   const [avisoSync, setAvisoSync] = useState('')
   const [sincronizando, setSincronizando] = useState(false)
@@ -54,6 +57,9 @@ export function ProveedorPublicaciones({ children }: { children: ReactNode }): J
       const resultado = await window.api.listarPublicaciones(sincronizarAntes)
       setPublicaciones(resultado.publicaciones)
       setAvisoSync(resultado.avisoSync)
+      // El registro se relee junto con los posts: después de un renombrado o
+      // de un pull, las dos cosas tienen que moverse a la vez.
+      setTemas(await window.api.listarTemas())
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -66,6 +72,8 @@ export function ProveedorPublicaciones({ children }: { children: ReactNode }): J
     recargar(false)
   }, [recargar])
 
+  // Los nombres para el filtro salen de lo que las reflexiones usan de verdad,
+  // no del registro: filtrar por un tema sin reflexiones no dejaría nada.
   const categorias = useMemo(() => {
     const vistas = new Set((publicaciones ?? []).map((p) => p.categoria).filter(Boolean))
     return [...vistas].sort((a, b) => a.localeCompare(b, 'es'))
@@ -79,6 +87,7 @@ export function ProveedorPublicaciones({ children }: { children: ReactNode }): J
   const valor = useMemo<Datos>(
     () => ({
       publicaciones,
+      temas,
       error,
       avisoSync,
       sincronizando,
@@ -87,7 +96,7 @@ export function ProveedorPublicaciones({ children }: { children: ReactNode }): J
       recargar,
       descartarAviso: () => setAvisoSync('')
     }),
-    [publicaciones, error, avisoSync, sincronizando, categorias, colores, recargar]
+    [publicaciones, temas, error, avisoSync, sincronizando, categorias, colores, recargar]
   )
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>

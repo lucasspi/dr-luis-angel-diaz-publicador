@@ -3,11 +3,14 @@ import path from 'node:path'
 import matter from 'gray-matter'
 import { urlImagen } from './imagenes'
 import { slugificarCategoria } from './slug'
+import { leerTemas, type Tema } from './temas'
 
 export interface Publicacion {
   slug: string
   titulo: string
   fecha: string
+  /** Id del tema en el registro — la clave estable, no la etiqueta. */
+  temaId: string
   categoria: string
   /** El slug con el que el sitio publica /categoria/{slug}. */
   categoriaSlug: string
@@ -42,6 +45,26 @@ function texto(valor: unknown): string {
 }
 
 /**
+ * El tema de un post, venga en el formato nuevo (`tema: <id>`) o en el viejo
+ * (`categoria: "<nombre>"`). Espeja a `resolverTema` de content/loader.mjs del
+ * sitio: las dos lecturas tienen que coincidir o el app enseñaría un tema y el
+ * sitio otro.
+ */
+function resolverTema(
+  data: Record<string, unknown> | undefined,
+  porId: Map<string, Tema>,
+  porSlug: Map<string, Tema>
+): Tema | null {
+  const id = texto(data?.tema)
+  if (id) return porId.get(id) ?? null
+
+  const nombre = texto(data?.categoria)
+  if (!nombre) return null
+  const slug = slugificarCategoria(nombre)
+  return porSlug.get(slug) ?? { id: slug, nombre, slug }
+}
+
+/**
  * Las reflexiones que están en el sitio, leídas del clone local — las mismas
  * que el build convierte en páginas. Solo las publicadas: `publicado: false`
  * es un borrador y no existe para el visitante.
@@ -58,6 +81,10 @@ export async function listarPublicaciones(repoPath: string): Promise<Publicacion
     return []
   }
 
+  const temas = await leerTemas(repoPath)
+  const porId = new Map(temas.map((t) => [t.id, t]))
+  const porSlug = new Map(temas.map((t) => [t.slug, t]))
+
   const publicaciones: Publicacion[] = []
   for (const archivo of archivos) {
     if (!archivo.endsWith('.md')) continue
@@ -67,13 +94,14 @@ export async function listarPublicaciones(repoPath: string): Promise<Publicacion
 
       const slug = slugDesdeArchivo(archivo)
       const imagen = texto(data?.imagen)
-      const categoria = texto(data?.categoria)
+      const tema = resolverTema(data, porId, porSlug)
       publicaciones.push({
         slug,
         titulo: texto(data?.titulo) || slug,
         fecha: fechaISO(data?.fecha, archivo),
-        categoria,
-        categoriaSlug: categoria ? slugificarCategoria(categoria) : '',
+        temaId: tema?.id ?? '',
+        categoria: tema?.nombre ?? '',
+        categoriaSlug: tema?.slug ?? '',
         resumen: texto(data?.resumen),
         imagen,
         thumbUrl: urlImagen(imagen),

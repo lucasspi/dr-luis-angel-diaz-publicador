@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Input, Result, Space, Table, Typography } from 'antd'
-import { ExportOutlined } from '@ant-design/icons'
+import { Alert, App, Button, Input, Modal, Result, Space, Table, Tooltip, Typography } from 'antd'
+import { EditOutlined, ExportOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { usePublicaciones } from '../datos/publicaciones'
 import { CabeceraLista } from '../components/CabeceraLista'
 import { Portada } from '../components/Portada'
 import { fechaLegible, normalizar } from '../lib/formato'
 
-const { Text } = Typography
+const { Paragraph, Text } = Typography
 
 const BASE_URL = 'https://drluisangeldiaz.com'
 
-interface Tema {
+interface Fila {
+  id: string
   nombre: string
   slug: string
   /** La portada de la reflexión más reciente del tema. */
@@ -22,49 +23,167 @@ interface Tema {
   url: string
 }
 
+/**
+ * Renombrar solo toca `nombre` en content/temas.json. Ni el `id` (que es lo
+ * que referencian las reflexiones) ni el `slug` (que es la URL) se mueven, así
+ * que no se reescribe ningún post y nadie pierde el enlace que tenía.
+ */
+function DialogoRenombrar({
+  tema,
+  onCerrar,
+  onListo
+}: {
+  tema: Fila | null
+  onCerrar: () => void
+  onListo: () => Promise<void>
+}): JSX.Element {
+  const { notification } = App.useApp()
+  const [nombre, setNombre] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setNombre(tema?.nombre ?? '')
+    setError('')
+  }, [tema])
+
+  const limpio = nombre.trim()
+  const cambió = tema !== null && limpio !== '' && limpio !== tema.nombre
+
+  async function guardar(): Promise<void> {
+    if (!tema || !cambió) return
+    setGuardando(true)
+    setError('')
+    try {
+      await window.api.renombrarTema(tema.id, limpio)
+      await onListo()
+      // Aviso que se queda, no un toast que se va: el cambio ya está subido
+      // pero el sitio tarda en reconstruirse, y sin decirlo parece que no pasó
+      // nada cuando abres la página y sigue el nombre viejo.
+      notification.success({
+        message: 'Nombre cambiado y publicado',
+        description: (
+          <>
+            El sitio tarda <b>1–2 minutos</b> en reconstruirse. Hasta entonces,{' '}
+            <Text code style={{ fontSize: 12 }}>
+              /categoria/{tema.slug}
+            </Text>{' '}
+            todavía muestra «{tema.nombre}».
+          </>
+        ),
+        duration: 12,
+        placement: 'bottomRight'
+      })
+      onCerrar()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <Modal
+      open={tema !== null}
+      title="Cambiar el nombre del tema"
+      okText="Guardar y publicar"
+      cancelText="Cancelar"
+      onCancel={onCerrar}
+      onOk={guardar}
+      okButtonProps={{ disabled: !cambió, loading: guardando }}
+      cancelButtonProps={{ disabled: guardando }}
+      destroyOnClose
+    >
+      <Space direction="vertical" size="middle" style={{ width: '100%', paddingTop: 8 }}>
+        <Input
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          onPressEnter={guardar}
+          placeholder="Nombre del tema"
+          autoFocus
+          disabled={guardando}
+        />
+
+        <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 13 }}>
+          Cambia solo la etiqueta que ve el lector, en {tema?.cantidad ?? 0} reflexión
+          {(tema?.cantidad ?? 0) === 1 ? '' : 'es'}. La dirección de la página <b>no</b> se mueve:
+          <br />
+          <Text code style={{ fontSize: 12 }}>
+            /categoria/{tema?.slug}
+          </Text>
+        </Paragraph>
+
+        <Alert
+          type="info"
+          showIcon
+          message="Se publica solo"
+          description="Al guardar, el cambio se sube al sitio sin que tengas que hacer nada más. Tarda 1–2 minutos en verse: el sitio se reconstruye entero cada vez."
+        />
+
+        {error && <Alert type="error" showIcon message={error} />}
+      </Space>
+    </Modal>
+  )
+}
+
 export default function Temas(): JSX.Element {
-  const { publicaciones, error, recargar } = usePublicaciones()
+  const { publicaciones, temas, error, recargar } = usePublicaciones()
 
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
+  const [editando, setEditando] = useState<Fila | null>(null)
 
-  // Los temas salen de las reflexiones publicadas, no de una lista aparte: en
-  // el sitio un tema solo existe (y solo gana su página /categoria/{slug})
-  // cuando alguna reflexión publicada lo usa.
-  const temas = useMemo<Tema[]>(() => {
-    const porNombre = new Map<string, Tema>()
+  // El registro manda la identidad; las reflexiones ponen los números. Un tema
+  // dado de alta que todavía nadie usó sale con 0 — el sitio no le genera
+  // página, pero tiene que poder renombrarse igual.
+  const filas = useMemo<Fila[]>(() => {
+    const porId = new Map<string, Fila>(
+      temas.map((t) => ({
+        id: t.id,
+        nombre: t.nombre,
+        slug: t.slug,
+        thumbUrl: '',
+        cantidad: 0,
+        primera: '',
+        ultima: '',
+        url: `${BASE_URL}/categoria/${t.slug}`
+      })).map((f) => [f.id, f])
+    )
 
     for (const p of publicaciones ?? []) {
-      if (!p.categoria) continue
-      const previo = porNombre.get(p.categoria)
-      if (!previo) {
-        porNombre.set(p.categoria, {
+      if (!p.temaId) continue
+      let fila = porId.get(p.temaId)
+      if (!fila) {
+        // Un post estrenando un tema que el registro aún no tiene (publicado
+        // desde un app sin actualizar). Se muestra igual.
+        fila = {
+          id: p.temaId,
           nombre: p.categoria,
           slug: p.categoriaSlug,
-          thumbUrl: p.thumbUrl,
-          cantidad: 1,
-          primera: p.fecha,
-          ultima: p.fecha,
+          thumbUrl: '',
+          cantidad: 0,
+          primera: '',
+          ultima: '',
           url: `${BASE_URL}/categoria/${p.categoriaSlug}`
-        })
-        continue
+        }
+        porId.set(p.temaId, fila)
       }
-      previo.cantidad += 1
-      if (p.fecha < previo.primera) previo.primera = p.fecha
-      if (p.fecha > previo.ultima) {
-        previo.ultima = p.fecha
-        previo.thumbUrl = p.thumbUrl
+      fila.cantidad += 1
+      if (!fila.primera || p.fecha < fila.primera) fila.primera = p.fecha
+      if (!fila.ultima || p.fecha > fila.ultima) {
+        fila.ultima = p.fecha
+        fila.thumbUrl = p.thumbUrl
       }
     }
 
-    return [...porNombre.values()].sort((a, b) => b.cantidad - a.cantidad)
-  }, [publicaciones])
+    return [...porId.values()].sort((a, b) => b.cantidad - a.cantidad)
+  }, [temas, publicaciones])
 
   const visibles = useMemo(() => {
     const termino = normalizar(busqueda.trim())
-    if (!termino) return temas
-    return temas.filter((t) => normalizar(t.nombre).includes(termino))
-  }, [temas, busqueda])
+    if (!termino) return filas
+    return filas.filter((f) => normalizar(f.nombre).includes(termino))
+  }, [filas, busqueda])
 
   useEffect(() => {
     setPagina(1)
@@ -85,13 +204,13 @@ export default function Temas(): JSX.Element {
     )
   }
 
-  const columnas: ColumnsType<Tema> = [
+  const columnas: ColumnsType<Fila> = [
     {
       title: '',
       dataIndex: 'thumbUrl',
       key: 'thumb',
       width: 88,
-      render: (src: string, t) => <Portada src={src} alt={t.nombre} />
+      render: (src: string, f) => <Portada src={src} alt={f.nombre} />
     },
     {
       title: 'Tema',
@@ -110,7 +229,8 @@ export default function Temas(): JSX.Element {
       align: 'right',
       defaultSortOrder: 'descend',
       sorter: (a, b) => a.cantidad - b.cantidad,
-      render: (cantidad: number) => <Text strong>{cantidad}</Text>
+      render: (cantidad: number) =>
+        cantidad > 0 ? <Text strong>{cantidad}</Text> : <Text type="secondary">0</Text>
     },
     {
       title: 'Primera',
@@ -118,7 +238,7 @@ export default function Temas(): JSX.Element {
       key: 'primera',
       width: 140,
       sorter: (a, b) => a.primera.localeCompare(b.primera),
-      render: (fecha: string) => <Text type="secondary">{fechaLegible(fecha)}</Text>
+      render: (fecha: string) => <Text type="secondary">{fechaLegible(fecha) || '—'}</Text>
     },
     {
       title: 'Última',
@@ -126,22 +246,42 @@ export default function Temas(): JSX.Element {
       key: 'ultima',
       width: 140,
       sorter: (a, b) => a.ultima.localeCompare(b.ultima),
-      render: (fecha: string) => <Text type="secondary">{fechaLegible(fecha)}</Text>
+      render: (fecha: string) => <Text type="secondary">{fechaLegible(fecha) || '—'}</Text>
     },
     {
       title: '',
-      key: 'accion',
-      width: 72,
+      key: 'acciones',
+      width: 96,
       align: 'right',
-      render: (_, t) => (
-        <Button
-          type="text"
-          size="small"
-          icon={<ExportOutlined />}
-          onClick={() => window.api.abrirEnlace(t.url)}
-        >
-          Ver
-        </Button>
+      render: (_, f) => (
+        <Space size={0}>
+          <Tooltip title="Cambiar el nombre">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => setEditando(f)}
+            />
+          </Tooltip>
+          <Tooltip
+            title={
+              f.cantidad > 0
+                ? 'Ver en el sitio'
+                : 'Sin reflexiones todavía — el sitio no le genera página'
+            }
+          >
+            {/* El span deja que el tooltip funcione con el botón deshabilitado. */}
+            <span>
+              <Button
+                type="text"
+                size="small"
+                icon={<ExportOutlined />}
+                disabled={f.cantidad === 0}
+                onClick={() => window.api.abrirEnlace(f.url)}
+              />
+            </span>
+          </Tooltip>
+        </Space>
       )
     }
   ]
@@ -165,13 +305,13 @@ export default function Temas(): JSX.Element {
         )}
       </Space>
 
-      <Table<Tema>
-        rowKey="slug"
+      <Table<Fila>
+        rowKey="id"
         size="small"
         loading={publicaciones === null}
         columns={columnas}
         dataSource={visibles}
-        onRow={(t) => ({ onDoubleClick: () => window.api.abrirEnlace(t.url) })}
+        onRow={(f) => ({ onDoubleClick: () => setEditando(f) })}
         pagination={{
           current: pagina,
           onChange: setPagina,
@@ -185,8 +325,14 @@ export default function Temas(): JSX.Element {
           emptyText:
             busqueda.trim() !== ''
               ? 'Ningún tema coincide con la búsqueda'
-              : 'Todavía no hay temas en uso'
+              : 'Todavía no hay temas'
         }}
+      />
+
+      <DialogoRenombrar
+        tema={editando}
+        onCerrar={() => setEditando(null)}
+        onListo={() => recargar(false)}
       />
     </Space>
   )

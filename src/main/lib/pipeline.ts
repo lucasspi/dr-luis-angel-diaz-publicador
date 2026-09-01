@@ -4,6 +4,7 @@ import { extractText } from './docExtract'
 import { formatearConCodex } from './codexFormat'
 import { generarImagen } from './imageGen'
 import { escribirPost } from './writePost'
+import { asegurarTema, RUTA_TEMAS } from './temas'
 import { publicar } from './publish'
 import type { AppConfig } from './config'
 
@@ -42,10 +43,15 @@ export async function procesarDocumento(
   await generarImagen(formateada.image_prompt, config.falApiKey, imagenAbsoluta)
 
   avisar('Guardando la reflexión…')
+  // El tema se referencia por id. Si es uno nuevo, se da de alta en el
+  // registro y ese archivo entra en el mismo commit que la reflexión — así el
+  // sitio nunca ve un post apuntando a un tema que todavía no existe.
+  const { id: temaId, creado: temaNuevo } = await asegurarTema(config.repoPath, categoria)
+
   const { mdPath } = await escribirPost(config.repoPath, {
     titulo: formateada.titulo,
     fecha,
-    categoria: categoria.trim(),
+    temaId,
     versiculo: formateada.versiculo,
     resumen: formateada.resumen,
     slug: formateada.slug,
@@ -54,10 +60,12 @@ export async function procesarDocumento(
   })
 
   avisar('Publicando…')
-  await publicar(config.repoPath, formateada.titulo, [
+  const archivos = [
     path.relative(config.repoPath, mdPath),
     path.relative(config.repoPath, imagenAbsoluta)
-  ])
+  ]
+  if (temaNuevo) archivos.push(RUTA_TEMAS)
+  await publicar(config.repoPath, formateada.titulo, archivos)
 
   return { url: `https://drluisangeldiaz.com/${formateada.slug}` }
 }

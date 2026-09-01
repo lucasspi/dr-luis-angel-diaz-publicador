@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { ConfigProvider, Tabs, Typography } from 'antd'
+import { App as AntApp, ConfigProvider, Tabs, Typography } from 'antd'
 import { CloudUploadOutlined, TagsOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import esES from 'antd/locale/es_ES'
 import { BarraActualizacion, type EstadoUpdate } from './components/BarraActualizacion'
@@ -77,7 +77,11 @@ function Cascara(): JSX.Element {
         />
       </div>
 
-      <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+      {/* minHeight: 0 no es decorativo. Un hijo flex tiene min-height:auto, así
+          que en vez de encoger y activar el overflow, crece hasta la altura de
+          su contenido — y con el body en overflow:hidden la tabla larga queda
+          cortada y sin manera de llegar a ella. */}
+      <main style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 24 }}>
         <Routes>
           <Route path="/publicar" element={<Publicador />} />
           <Route path="/publicaciones" element={<Publicaciones />} />
@@ -92,11 +96,20 @@ function Cascara(): JSX.Element {
 export default function App(): JSX.Element {
   return (
     <ConfigProvider locale={esES}>
-      <ProveedorPublicaciones>
-        <HashRouter>
-          <Cascara />
-        </HashRouter>
-      </ProveedorPublicaciones>
+      {/* <App> de antd: sin él, los avisos flotantes no ven el ConfigProvider y
+          salen sin el locale ni el tema de la app.
+          El height:100% no es opcional — <App> mete un <div class="ant-app">
+          entre #root y la cáscara, y si ese div no tiene altura, el height:100%
+          de la cáscara no resuelve contra nada: toda la columna crece hasta la
+          altura de su contenido, ningún contenedor scrollea y el
+          overflow:hidden del body se come el resto de la página. */}
+      <AntApp style={{ height: '100%' }}>
+        <ProveedorPublicaciones>
+          <HashRouter>
+            <Cascara />
+          </HashRouter>
+        </ProveedorPublicaciones>
+      </AntApp>
     </ConfigProvider>
   )
 }
