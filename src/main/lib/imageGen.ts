@@ -12,13 +12,38 @@ interface ResultadoJob {
   images?: Array<{ url: string }>
 }
 
+async function esperar(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function fetchConReintentos(
+  url: string,
+  init?: RequestInit,
+  intentos = 3
+): Promise<Response> {
+  let ultimoError: unknown
+  for (let intento = 1; intento <= intentos; intento += 1) {
+    try {
+      const respuesta = await fetch(url, init)
+      if (respuesta.status !== 429 && respuesta.status < 500) return respuesta
+      ultimoError = new Error(`El servidor respondió ${respuesta.status}.`)
+    } catch (err) {
+      ultimoError = err
+    }
+    if (intento < intentos) await esperar(1000 * intento)
+  }
+
+  const detalle = ultimoError instanceof Error ? ultimoError.message : String(ultimoError)
+  throw new Error(`No se pudo conectar al servicio de imágenes después de ${intentos} intentos. (${detalle})`)
+}
+
 export async function generarImagen(prompt: string, falApiKey: string, destPath: string): Promise<void> {
   const headers = {
     Authorization: `Key ${falApiKey}`,
     'Content-Type': 'application/json'
   }
 
-  const submitRes = await fetch(`${QUEUE_BASE}/${MODEL}`, {
+  const submitRes = await fetchConReintentos(`${QUEUE_BASE}/${MODEL}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -42,7 +67,7 @@ export async function generarImagen(prompt: string, falApiKey: string, destPath:
     throw new Error('fal.ai no devolvió ninguna imagen.')
   }
 
-  const imgRes = await fetch(imagen.url)
+  const imgRes = await fetchConReintentos(imagen.url)
   if (!imgRes.ok) throw new Error(`No se pudo descargar la imagen generada (${imgRes.status}).`)
   const buffer = Buffer.from(await imgRes.arrayBuffer())
 
@@ -59,11 +84,11 @@ async function esperarResultado(
 ): Promise<ResultadoJob> {
   const inicio = Date.now()
   while (true) {
-    const statusRes = await fetch(statusUrl, { headers })
+    const statusRes = await fetchConReintentos(statusUrl, { headers })
     const status = (await statusRes.json()) as EstadoJob
 
     if (status.status === 'COMPLETED') {
-      const res = await fetch(responseUrl, { headers })
+      const res = await fetchConReintentos(responseUrl, { headers })
       return (await res.json()) as ResultadoJob
     }
     if (status.status === 'FAILED' || status.status === 'ERROR') {
@@ -72,6 +97,6 @@ async function esperarResultado(
     if (Date.now() - inicio > maxWaitMs) {
       throw new Error('Tiempo de espera agotado generando la imagen.')
     }
-    await new Promise((r) => setTimeout(r, pollMs))
+    await esperar(pollMs)
   }
 }

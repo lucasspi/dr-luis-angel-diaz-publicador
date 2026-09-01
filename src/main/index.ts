@@ -12,6 +12,7 @@ import { confirmar } from './lib/publish'
 import { sincronizar } from './lib/git'
 import { registrarEsquemaImagen, servirImagenes } from './lib/imagenes'
 import { procesarDocumento } from './lib/pipeline'
+import { procesarDocumentosEnLote } from './lib/pipelineLote'
 import { buscarActualizaciones, configurarActualizaciones, instalarActualizacion } from './lib/updates'
 
 // Antes de whenReady, o el esquema no queda registrado como estándar.
@@ -105,6 +106,17 @@ app.whenReady().then(() => {
     return procesarDocumento(filePath, categoria ?? '', config, mainWindow)
   })
 
+  ipcMain.handle('procesar-documentos', async (_event, filePaths: string[], categoria: string) => {
+    if (!mainWindow) throw new Error('Ventana no disponible.')
+    const config = await cargarConfig()
+    if (!config) {
+      throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
+    }
+    return procesarDocumentosEnLote(filePaths, categoria ?? '', config, (evento) => {
+      mainWindow?.webContents.send('progreso-lote', evento)
+    })
+  })
+
   ipcMain.handle('listar-categorias', async () => {
     const config = await cargarConfig()
     if (!config) return []
@@ -190,6 +202,8 @@ app.whenReady().then(() => {
   ipcMain.handle('buscar-actualizaciones', () => {
     buscarActualizaciones()
   })
+
+  ipcMain.handle('obtener-version-app', () => app.getVersion())
 
   ipcMain.handle('instalar-actualizacion', () => {
     instalarActualizacion()

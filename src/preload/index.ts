@@ -9,6 +9,15 @@ export interface ResultadoProceso {
   url: string
 }
 
+export type EventoProgresoLote =
+  | { tipo: 'progreso'; filePath: string; mensaje: string; porcentaje: number }
+  | { tipo: 'exito'; filePath: string; url: string }
+  | { tipo: 'erro'; filePath: string; mensaje: string }
+
+export type ResultadoDocumentoLote =
+  | { filePath: string; status: 'exito'; url: string }
+  | { filePath: string; status: 'erro'; mensaje: string }
+
 export interface Tema {
   /** La clave. Es lo que el frontmatter referencia. No cambia nunca. */
   id: string
@@ -59,7 +68,7 @@ export type EstadoActualizacion =
   | { fase: 'disponible'; version: string }
   | { fase: 'no-disponible' }
   | { fase: 'descargando'; porcentaje: number }
-  | { fase: 'descargada'; version: string }
+  | { fase: 'descargada'; version: string; fecha?: string; notas?: string }
   | { fase: 'error'; mensaje: string }
 
 const api = {
@@ -80,14 +89,23 @@ const api = {
     ipcRenderer.invoke('cambiar-titulo', archivo, tituloNuevo),
   procesarDocumento: (filePath: string, categoria: string): Promise<ResultadoProceso> =>
     ipcRenderer.invoke('procesar-documento', filePath, categoria),
+  procesarDocumentos: (filePaths: string[], categoria: string): Promise<ResultadoDocumentoLote[]> =>
+    ipcRenderer.invoke('procesar-documentos', filePaths, categoria),
   abrirEnlace: (url: string): Promise<void> => ipcRenderer.invoke('abrir-enlace', url),
   onProgreso: (callback: (mensaje: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, mensaje: string): void => callback(mensaje)
     ipcRenderer.on('progreso', listener)
     return () => ipcRenderer.removeListener('progreso', listener)
   },
+  onProgresoLote: (callback: (evento: EventoProgresoLote) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, evento: EventoProgresoLote): void =>
+      callback(evento)
+    ipcRenderer.on('progreso-lote', listener)
+    return () => ipcRenderer.removeListener('progreso-lote', listener)
+  },
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
   buscarActualizaciones: (): Promise<void> => ipcRenderer.invoke('buscar-actualizaciones'),
+  obtenerVersionApp: (): Promise<string> => ipcRenderer.invoke('obtener-version-app'),
   instalarActualizacion: (): Promise<void> => ipcRenderer.invoke('instalar-actualizacion'),
   onEstadoActualizacion: (callback: (estado: EstadoActualizacion) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, estado: EstadoActualizacion): void =>

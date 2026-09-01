@@ -7,7 +7,7 @@ export type EstadoActualizacion =
   | { fase: 'disponible'; version: string }
   | { fase: 'no-disponible' }
   | { fase: 'descargando'; porcentaje: number }
-  | { fase: 'descargada'; version: string }
+  | { fase: 'descargada'; version: string; fecha?: string; notas?: string }
   | { fase: 'error'; mensaje: string }
 
 let ventanaRef: BrowserWindow | null = null
@@ -24,7 +24,17 @@ export function configurarActualizaciones(ventana: BrowserWindow): void {
   autoUpdater.on('download-progress', (progreso) =>
     avisar({ fase: 'descargando', porcentaje: Math.round(progreso.percent) })
   )
-  autoUpdater.on('update-downloaded', (info) => avisar({ fase: 'descargada', version: info.version }))
+  autoUpdater.on('update-downloaded', (info) => {
+    const notas = Array.isArray(info.releaseNotes)
+      ? info.releaseNotes.map((nota) => nota.note).filter(Boolean).join('\n\n')
+      : info.releaseNotes
+    avisar({
+      fase: 'descargada',
+      version: info.version,
+      fecha: info.releaseDate,
+      notas: notas || undefined
+    })
+  })
   autoUpdater.on('error', (err) => avisar({ fase: 'error', mensaje: err.message }))
 }
 
