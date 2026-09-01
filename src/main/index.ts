@@ -6,6 +6,7 @@ import { listarCategorias } from './lib/categorias'
 import { listarPublicaciones } from './lib/publicaciones'
 import { leerTemas, renombrarTema, RUTA_TEMAS } from './lib/temas'
 import { borrarPublicacion } from './lib/borrar'
+import { cambiarTitulo } from './lib/editarPost'
 import { confirmar } from './lib/publish'
 import { sincronizar } from './lib/git'
 import { registrarEsquemaImagen, servirImagenes } from './lib/imagenes'
@@ -143,6 +144,21 @@ app.whenReady().then(() => {
     const tema = await renombrarTema(config.repoPath, id, nombreNuevo)
     await confirmar(config.repoPath, `tema: «${tema.nombre}»`, [RUTA_TEMAS])
     return tema
+  })
+
+  ipcMain.handle('cambiar-titulo', async (_event, archivo: string, tituloNuevo: string) => {
+    const config = await cargarConfig()
+    if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
+
+    // Sincronizar antes: si la reflexión cambió desde el Mac del Dr. Luis,
+    // mejor escribir sobre la versión de ahora que sobre una copia vieja.
+    await sincronizar(config.repoPath)
+
+    const r = await cambiarTitulo(config.repoPath, archivo, tituloNuevo)
+    await confirmar(config.repoPath, `título: ${r.titulo}`, [
+      `content/posts/${r.archivo}`
+    ])
+    return r
   })
 
   ipcMain.handle('borrar-publicacion', async (_event, archivo: string, titulo: string) => {

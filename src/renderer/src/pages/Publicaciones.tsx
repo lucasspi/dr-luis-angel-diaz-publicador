@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, DatePicker, Input, Result, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
-import { DeleteOutlined, ExportOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, ExportOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { Publicacion } from '../../../preload'
@@ -8,6 +8,7 @@ import { usePublicaciones } from '../datos/publicaciones'
 import { CabeceraLista } from '../components/CabeceraLista'
 import { Portada } from '../components/Portada'
 import { DialogoBorrar, type Consecuencias } from '../components/DialogoBorrar'
+import { DialogoTitulo } from '../components/DialogoTitulo'
 import { fechaLegible, normalizar } from '../lib/formato'
 
 const { RangePicker } = DatePicker
@@ -49,6 +50,7 @@ export default function Publicaciones(): JSX.Element {
   const [categoria, setCategoria] = useState(TODOS)
   const [pagina, setPagina] = useState(1)
   const [borrando, setBorrando] = useState<Publicacion | null>(null)
+  const [editando, setEditando] = useState<Publicacion | null>(null)
 
   const visibles = useMemo(() => {
     const termino = normalizar(busqueda.trim())
@@ -136,10 +138,18 @@ export default function Publicaciones(): JSX.Element {
     {
       title: '',
       key: 'acciones',
-      width: 96,
+      width: 124,
       align: 'right',
       render: (_, p) => (
         <Space size={0}>
+          <Tooltip title="Cambiar el título">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => setEditando(p)}
+            />
+          </Tooltip>
           <Tooltip title="Ver en el sitio">
             <Button
               type="text"
@@ -230,7 +240,7 @@ export default function Publicaciones(): JSX.Element {
         loading={publicaciones === null}
         columns={columnas}
         dataSource={visibles}
-        onRow={(p) => ({ onDoubleClick: () => window.api.abrirEnlace(p.url) })}
+        onRow={(p) => ({ onDoubleClick: () => setEditando(p) })}
         pagination={{
           current: pagina,
           onChange: setPagina,
@@ -245,6 +255,12 @@ export default function Publicaciones(): JSX.Element {
             ? 'Ninguna reflexión coincide con los filtros'
             : 'Todavía no hay reflexiones publicadas'
         }}
+      />
+
+      <DialogoTitulo
+        publicacion={editando}
+        onCerrar={() => setEditando(null)}
+        onListo={() => recargar(false)}
       />
 
       <DialogoBorrar

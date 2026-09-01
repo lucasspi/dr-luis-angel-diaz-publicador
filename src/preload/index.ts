@@ -66,6 +66,8 @@ const api = {
     ipcRenderer.invoke('renombrar-tema', id, nombreNuevo),
   borrarPublicacion: (archivo: string, titulo: string): Promise<ResultadoBorrado> =>
     ipcRenderer.invoke('borrar-publicacion', archivo, titulo),
+  cambiarTitulo: (archivo: string, tituloNuevo: string): Promise<{ archivo: string; titulo: string }> =>
+    ipcRenderer.invoke('cambiar-titulo', archivo, tituloNuevo),
   procesarDocumento: (filePath: string, categoria: string): Promise<ResultadoProceso> =>
     ipcRenderer.invoke('procesar-documento', filePath, categoria),
   abrirEnlace: (url: string): Promise<void> => ipcRenderer.invoke('abrir-enlace', url),
