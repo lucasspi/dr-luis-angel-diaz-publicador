@@ -9,6 +9,24 @@ export interface ResultadoProceso {
   url: string
 }
 
+export interface Publicacion {
+  slug: string
+  titulo: string
+  fecha: string
+  categoria: string
+  resumen: string
+  imagen: string
+  thumbUrl: string
+  url: string
+  archivo: string
+}
+
+export interface ResultadoPublicaciones {
+  publicaciones: Publicacion[]
+  /** Vacío si el pull salió bien; si no, por qué la lista puede estar atrasada. */
+  avisoSync: string
+}
+
 export type EstadoActualizacion =
   | { fase: 'buscando' }
   | { fase: 'disponible'; version: string }
@@ -21,6 +39,8 @@ const api = {
   obtenerConfig: (): Promise<ConfigInfo> => ipcRenderer.invoke('obtener-config'),
   elegirDocumento: (): Promise<string | null> => ipcRenderer.invoke('elegir-documento'),
   listarCategorias: (): Promise<string[]> => ipcRenderer.invoke('listar-categorias'),
+  listarPublicaciones: (sincronizarAntes = false): Promise<ResultadoPublicaciones> =>
+    ipcRenderer.invoke('listar-publicaciones', sincronizarAntes),
   procesarDocumento: (filePath: string, categoria: string): Promise<ResultadoProceso> =>
     ipcRenderer.invoke('procesar-documento', filePath, categoria),
   abrirEnlace: (url: string): Promise<void> => ipcRenderer.invoke('abrir-enlace', url),

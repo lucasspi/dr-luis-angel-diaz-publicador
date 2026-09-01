@@ -2,11 +2,25 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
+    <!-- reflexion-img: es el esquema propio con el que se sirven las portadas
+         desde el clone del sitio (ver main/lib/imagenes.ts). Sin él aquí, la
+         CSP bloquea las miniaturas de la tabla sin decir nada. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: reflexion-img:"
     />
     <title>Publicador Dr. Luis</title>
+    <style>
+      html,
+      body,
+      #root {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
