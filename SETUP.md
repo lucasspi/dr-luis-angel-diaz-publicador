@@ -75,9 +75,19 @@ por imagen generada.
 ```json
 {
   "repoPath": "/Users/<usuario-del-Dr-Luis>/Sitios/dr-luis-angel-diaz",
-  "falApiKey": "<la clave de fal.ai>"
+  "falApiKey": "<la clave de fal.ai>",
+  "goatcounter": {
+    "site": "drluisangeldiaz",
+    "token": "<token de API de GoatCounter>"
+  }
 }
 ```
+
+El bloque `goatcounter` es **opcional**: sin él todo funciona igual y la
+pestaña de Visitas explica que falta configurarla. El token se saca en
+[drluisangeldiaz.goatcounter.com](https://drluisangeldiaz.goatcounter.com) →
+**User → API tokens**, con el permiso de *leer estadísticas*. El `site` es solo
+el código del subdominio, no la URL entera.
 
 5. Vuelve a abrir la app — debería mostrar la zona para soltar el
    documento en vez del aviso de "falta configurar".

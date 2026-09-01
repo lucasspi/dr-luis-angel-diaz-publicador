@@ -41,6 +41,13 @@ export interface ResultadoBorrado {
   imagenCompartidaCon: string[]
 }
 
+export interface Visitas {
+  desde: string
+  hasta: string
+  total: number
+  porRuta: { ruta: string; visitas: number }[]
+}
+
 export interface ResultadoPublicaciones {
   publicaciones: Publicacion[]
   /** Vacío si el pull salió bien; si no, por qué la lista puede estar atrasada. */
@@ -66,6 +73,9 @@ const api = {
     ipcRenderer.invoke('renombrar-tema', id, nombreNuevo),
   borrarPublicacion: (archivo: string, titulo: string): Promise<ResultadoBorrado> =>
     ipcRenderer.invoke('borrar-publicacion', archivo, titulo),
+  /** null cuando no hay analítica configurada en config.json. */
+  leerVisitas: (dias: number, rutas: string[]): Promise<Visitas | null> =>
+    ipcRenderer.invoke('leer-visitas', dias, rutas),
   cambiarTitulo: (archivo: string, tituloNuevo: string): Promise<{ archivo: string; titulo: string }> =>
     ipcRenderer.invoke('cambiar-titulo', archivo, tituloNuevo),
   procesarDocumento: (filePath: string, categoria: string): Promise<ResultadoProceso> =>

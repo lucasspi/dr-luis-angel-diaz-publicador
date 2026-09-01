@@ -1,4 +1,8 @@
 {
   "repoPath": "/Users/NOMBRE/Sitios/dr-luis-angel-diaz",
-  "falApiKey": "pega-aqui-la-clave-de-fal.ai"
+  "falApiKey": "pega-aqui-la-clave-de-fal.ai",
+  "goatcounter": {
+    "site": "drluisangeldiaz",
+    "token": "token-de-api-con-permiso-de-lectura"
+  }
 }

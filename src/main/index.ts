@@ -7,6 +7,7 @@ import { listarPublicaciones } from './lib/publicaciones'
 import { leerTemas, renombrarTema, RUTA_TEMAS } from './lib/temas'
 import { borrarPublicacion } from './lib/borrar'
 import { cambiarTitulo } from './lib/editarPost'
+import { leerVisitas } from './lib/analitica'
 import { confirmar } from './lib/publish'
 import { sincronizar } from './lib/git'
 import { registrarEsquemaImagen, servirImagenes } from './lib/imagenes'
@@ -173,6 +174,13 @@ app.whenReady().then(() => {
     // `git rm` ya dejó el borrado en el índice; confirmar solo commitea y sube.
     await confirmar(config.repoPath, `borrar: ${titulo}`, [])
     return resultado
+  })
+
+  ipcMain.handle('leer-visitas', async (_event, dias: number, rutas: string[]) => {
+    const config = await cargarConfig()
+    if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
+    if (!config.goatcounter?.site || !config.goatcounter?.token) return null
+    return leerVisitas(config.goatcounter, dias, rutas)
   })
 
   ipcMain.handle('abrir-enlace', (_event, url: string) => {

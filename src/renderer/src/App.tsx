@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { App as AntApp, ConfigProvider, Tabs, Typography } from 'antd'
-import { CloudUploadOutlined, TagsOutlined, UnorderedListOutlined } from '@ant-design/icons'
+import {
+  BarChartOutlined,
+  CloudUploadOutlined,
+  TagsOutlined,
+  UnorderedListOutlined
+} from '@ant-design/icons'
 import esES from 'antd/locale/es_ES'
 import { BarraActualizacion, type EstadoUpdate } from './components/BarraActualizacion'
 import Publicador from './pages/Publicador'
 import Publicaciones from './pages/Publicaciones'
 import Temas from './pages/Temas'
+import Visitas from './pages/Visitas'
 import { ProveedorPublicaciones } from './datos/publicaciones'
 
 const { Text } = Typography
@@ -25,7 +31,8 @@ const HUECO_SEMAFOROS = 82
 const PAGINAS = [
   { ruta: '/publicar', etiqueta: 'Publicar', icono: <CloudUploadOutlined /> },
   { ruta: '/publicaciones', etiqueta: 'Publicaciones', icono: <UnorderedListOutlined /> },
-  { ruta: '/temas', etiqueta: 'Temas', icono: <TagsOutlined /> }
+  { ruta: '/temas', etiqueta: 'Temas', icono: <TagsOutlined /> },
+  { ruta: '/visitas', etiqueta: 'Visitas', icono: <BarChartOutlined /> }
 ]
 
 function Cascara(): JSX.Element {
@@ -86,6 +93,7 @@ function Cascara(): JSX.Element {
           <Route path="/publicar" element={<Publicador />} />
           <Route path="/publicaciones" element={<Publicaciones />} />
           <Route path="/temas" element={<Temas />} />
+          <Route path="/visitas" element={<Visitas />} />
           <Route path="*" element={<Navigate to="/publicar" replace />} />
         </Routes>
       </main>
