@@ -111,7 +111,7 @@ esta revisión funcione sin ningún token embebido en el `.dmg` distribuido.
 Para publicar una versión nueva (tú, no el Dr. Luis):
 
 ```bash
-cd ~/Work/dr-luis-angel-diaz-publicador
+cd ~/Work/Spirandeli/brains/saas/dr-luis-angel-diaz/publicador
 # sube la versión en package.json (ej: 0.1.0 -> 0.2.0)
 export GH_TOKEN=$(gh auth token)
 npm run release:mac
