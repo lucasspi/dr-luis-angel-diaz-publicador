@@ -14,6 +14,7 @@ export interface Publicacion {
   titulo: string
   fecha: string
   categoria: string
+  categoriaSlug: string
   resumen: string
   imagen: string
   thumbUrl: string

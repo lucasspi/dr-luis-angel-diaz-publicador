@@ -2,12 +2,15 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import matter from 'gray-matter'
 import { urlImagen } from './imagenes'
+import { slugificarCategoria } from './slug'
 
 export interface Publicacion {
   slug: string
   titulo: string
   fecha: string
   categoria: string
+  /** El slug con el que el sitio publica /categoria/{slug}. */
+  categoriaSlug: string
   resumen: string
   imagen: string
   /** URL con la que el renderer carga la portada (esquema propio). */
@@ -64,11 +67,13 @@ export async function listarPublicaciones(repoPath: string): Promise<Publicacion
 
       const slug = slugDesdeArchivo(archivo)
       const imagen = texto(data?.imagen)
+      const categoria = texto(data?.categoria)
       publicaciones.push({
         slug,
         titulo: texto(data?.titulo) || slug,
         fecha: fechaISO(data?.fecha, archivo),
-        categoria: texto(data?.categoria),
+        categoria,
+        categoriaSlug: categoria ? slugificarCategoria(categoria) : '',
         resumen: texto(data?.resumen),
         imagen,
         thumbUrl: urlImagen(imagen),

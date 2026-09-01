@@ -17,11 +17,17 @@ let mainWindow: BrowserWindow | null = null
 function createWindow(): void {
   // Redimensionable desde que existe la lista de publicaciones: 194 reflexiones
   // no caben en la ventanita fija que alcanzaba para arrastrar un documento.
+  //
+  // El mínimo lo manda la tabla, no la pantalla de publicar. Las columnas de
+  // ancho fijo suman 520 (portada 88 + fecha 140 + tema 220 + acción 72) y el
+  // contenedor se lleva 48 de padding: por debajo de ~880 la columna de título
+  // se estrangula y los títulos largos parten en tres líneas. La barra de
+  // filtros pide algo parecido para no apilarse en tres filas.
   mainWindow = new BrowserWindow({
-    width: 920,
-    height: 720,
-    minWidth: 640,
-    minHeight: 560,
+    width: 1120,
+    height: 740,
+    minWidth: 880,
+    minHeight: 620,
     autoHideMenuBar: true,
     // Sin barra de título propia: los semáforos flotan sobre la cabecera de la
     // app (como Zoom o Slack). La `y` los centra en la franja de 52px que

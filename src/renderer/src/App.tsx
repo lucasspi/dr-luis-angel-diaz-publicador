@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { ConfigProvider, Tabs, Typography } from 'antd'
-import { CloudUploadOutlined, UnorderedListOutlined } from '@ant-design/icons'
+import { CloudUploadOutlined, TagsOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import esES from 'antd/locale/es_ES'
 import { BarraActualizacion, type EstadoUpdate } from './components/BarraActualizacion'
 import Publicador from './pages/Publicador'
 import Publicaciones from './pages/Publicaciones'
+import Temas from './pages/Temas'
+import { ProveedorPublicaciones } from './datos/publicaciones'
 
 const { Text } = Typography
 
@@ -22,7 +24,8 @@ const HUECO_SEMAFOROS = 82
 // por file://, donde las rutas con path real no resuelven.
 const PAGINAS = [
   { ruta: '/publicar', etiqueta: 'Publicar', icono: <CloudUploadOutlined /> },
-  { ruta: '/publicaciones', etiqueta: 'Publicaciones', icono: <UnorderedListOutlined /> }
+  { ruta: '/publicaciones', etiqueta: 'Publicaciones', icono: <UnorderedListOutlined /> },
+  { ruta: '/temas', etiqueta: 'Temas', icono: <TagsOutlined /> }
 ]
 
 function Cascara(): JSX.Element {
@@ -78,6 +81,7 @@ function Cascara(): JSX.Element {
         <Routes>
           <Route path="/publicar" element={<Publicador />} />
           <Route path="/publicaciones" element={<Publicaciones />} />
+          <Route path="/temas" element={<Temas />} />
           <Route path="*" element={<Navigate to="/publicar" replace />} />
         </Routes>
       </main>
@@ -88,9 +92,11 @@ function Cascara(): JSX.Element {
 export default function App(): JSX.Element {
   return (
     <ConfigProvider locale={esES}>
-      <HashRouter>
-        <Cascara />
-      </HashRouter>
+      <ProveedorPublicaciones>
+        <HashRouter>
+          <Cascara />
+        </HashRouter>
+      </ProveedorPublicaciones>
     </ConfigProvider>
   )
 }

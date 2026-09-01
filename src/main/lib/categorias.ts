@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import matter from 'gray-matter'
+import { slugificarCategoria as normalizar } from './slug'
 
 // Temas que siempre se ofrecen como chips, aunque ningún post los use aún —
 // el repertorio típico de un pastor. En el sitio una categoría solo gana
@@ -14,17 +15,6 @@ const CATEGORIAS_SUGERIDAS = [
   'Vida Cristiana',
   'Predicación'
 ]
-
-// "Oración" → "oracion": la misma normalización que usa el sitio para el
-// slug — sirve aquí para no ofrecer dos grafías del mismo tema.
-function normalizar(nombre: string): string {
-  return nombre
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
 
 // Las categorías ofrecidas al soltar un documento: las que ya aparecen en el
 // frontmatter de content/posts/*.md del clone local (su grafía gana, para que

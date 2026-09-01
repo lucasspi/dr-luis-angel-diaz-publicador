@@ -1,48 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Alert,
-  Button,
-  DatePicker,
-  Input,
-  Result,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography
-} from 'antd'
-import { ExportOutlined, PictureOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Button, DatePicker, Input, Result, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { ExportOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { Publicacion } from '../../../preload'
+import { usePublicaciones } from '../datos/publicaciones'
+import { CabeceraLista } from '../components/CabeceraLista'
+import { Portada } from '../components/Portada'
+import { fechaLegible, normalizar } from '../lib/formato'
 
 const { RangePicker } = DatePicker
-const { Text, Title } = Typography
+const { Text } = Typography
 
 const TODOS = '__todos__'
 
 type Rango = [Dayjs, Dayjs] | null
-
-// Colores de los chips de tema. Arbitrarios y sin guardar en ningún lado: se
-// reparten por posición en la lista ordenada de temas, no por hash del nombre.
-// Con 13 temas y 11 colores algún hash siempre choca, y hacía que las tres
-// "Capacitación…" salieran del mismo color, que es justo lo que se nota. Por
-// posición se usan los 11 y las dos repeticiones quedan lejísimos en el abecé.
-// El precio: si nace un tema nuevo, los de después cambian de color. Barato.
-const PALETA = [
-  'blue',
-  'green',
-  'purple',
-  'orange',
-  'cyan',
-  'magenta',
-  'geekblue',
-  'lime',
-  'volcano',
-  'gold',
-  'red'
-]
 
 // Los mismos atajos del calendario de referencia, en el orden en que se usan:
 // primero lo reciente, después el corte por mes y año.
@@ -68,98 +40,13 @@ function atajos(): { label: string; value: [Dayjs, Dayjs] }[] {
   ]
 }
 
-function fechaLegible(iso: string): string {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('-')
-  const fecha = new Date(Number(y), Number(m) - 1, Number(d))
-  if (Number.isNaN(fecha.getTime())) return iso
-  return fecha.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-// Sin acentos y en minúsculas, para que "oracion" encuentre "Oración".
-function normalizar(texto: string): string {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-}
-
-// La portada llega por el esquema propio `reflexion-img://` (ver
-// main/lib/imagenes.ts). Puede faltar el archivo: entonces cae al marcador.
-function Portada({ src, alt }: { src: string; alt: string }): JSX.Element {
-  const [falló, setFalló] = useState(false)
-
-  const marco: React.CSSProperties = {
-    width: 72,
-    height: 48,
-    borderRadius: 4,
-    background: '#f5f5f5',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    flexShrink: 0
-  }
-
-  if (!src || falló) {
-    return (
-      <div style={marco}>
-        <PictureOutlined style={{ color: '#bfbfbf' }} />
-      </div>
-    )
-  }
-
-  return (
-    <div style={marco}>
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        onError={() => setFalló(true)}
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-      />
-    </div>
-  )
-}
-
 export default function Publicaciones(): JSX.Element {
-  const [publicaciones, setPublicaciones] = useState<Publicacion[] | null>(null)
-  const [error, setError] = useState('')
-  const [avisoSync, setAvisoSync] = useState('')
-  const [sincronizando, setSincronizando] = useState(false)
+  const { publicaciones, error, categorias, colorTema, recargar } = usePublicaciones()
 
   const [busqueda, setBusqueda] = useState('')
   const [rango, setRango] = useState<Rango>(null)
   const [categoria, setCategoria] = useState(TODOS)
   const [pagina, setPagina] = useState(1)
-
-  async function cargar(sincronizarAntes: boolean): Promise<void> {
-    if (sincronizarAntes) setSincronizando(true)
-    try {
-      const resultado = await window.api.listarPublicaciones(sincronizarAntes)
-      setPublicaciones(resultado.publicaciones)
-      setAvisoSync(resultado.avisoSync)
-      setError('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSincronizando(false)
-    }
-  }
-
-  useEffect(() => {
-    cargar(false)
-  }, [])
-
-  const categorias = useMemo(() => {
-    const vistas = new Set((publicaciones ?? []).map((p) => p.categoria).filter(Boolean))
-    return [...vistas].sort((a, b) => a.localeCompare(b, 'es'))
-  }, [publicaciones])
-
-  const colorPorTema = useMemo(
-    () => new Map(categorias.map((c, i) => [c, PALETA[i % PALETA.length]])),
-    [categorias]
-  )
 
   const visibles = useMemo(() => {
     const termino = normalizar(busqueda.trim())
@@ -181,12 +68,6 @@ export default function Publicaciones(): JSX.Element {
     setPagina(1)
   }, [busqueda, rango, categoria])
 
-  function limpiarFiltros(): void {
-    setBusqueda('')
-    setRango(null)
-    setCategoria(TODOS)
-  }
-
   if (error) {
     return (
       <Result
@@ -194,7 +75,7 @@ export default function Publicaciones(): JSX.Element {
         title="No se pudo leer la lista"
         subTitle={error}
         extra={
-          <Button type="primary" onClick={() => cargar(false)}>
+          <Button type="primary" onClick={() => recargar(false)}>
             Intentar de nuevo
           </Button>
         }
@@ -235,7 +116,7 @@ export default function Publicaciones(): JSX.Element {
       dataIndex: 'categoria',
       key: 'categoria',
       width: 220,
-      render: (cat: string) => (cat ? <Tag color={colorPorTema.get(cat)}>{cat}</Tag> : null)
+      render: (cat: string) => (cat ? <Tag color={colorTema(cat)}>{cat}</Tag> : null)
     },
     {
       title: '',
@@ -259,40 +140,9 @@ export default function Publicaciones(): JSX.Element {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }} align="baseline" wrap>
-        {/* Solo lo que la tabla está mostrando: con filtros puestos, el total
-            del sitio obliga a hacer la resta mentalmente y no dice nada útil. */}
-        <Title level={5} style={{ margin: 0 }}>
-          {visibles.length} reflexion{visibles.length === 1 ? '' : 'es'}
-        </Title>
-        <Button
-          icon={<ReloadOutlined />}
-          loading={sincronizando}
-          onClick={() => cargar(true)}
-          size="small"
-        >
-          Sincronizar
-        </Button>
-      </Space>
-
-      {avisoSync && (
-        <Alert
-          type="warning"
-          showIcon
-          message="La lista puede estar atrasada"
-          description={
-            <>
-              No se pudo traer lo último del sitio, así que ves la última copia descargada.
-              <br />
-              <Text code style={{ fontSize: 12 }}>
-                {avisoSync}
-              </Text>
-            </>
-          }
-          closable
-          onClose={() => setAvisoSync('')}
-        />
-      )}
+      <CabeceraLista
+        recuento={`${visibles.length} reflexion${visibles.length === 1 ? '' : 'es'}`}
+      />
 
       <Space wrap style={{ width: '100%' }}>
         <Input.Search
@@ -312,18 +162,18 @@ export default function Publicaciones(): JSX.Element {
           placeholder={['Desde', 'Hasta']}
           allowClear
         />
+        {/* El chip del desplegable va del mismo color que el de la tabla, para
+            que se vea de un golpe qué filas va a dejar el filtro. */}
         <Select
           value={categoria}
           onChange={setCategoria}
           style={{ width: 220 }}
-          // El chip del desplegable va del mismo color que el de la tabla, para
-          // que se vea de un golpe qué filas va a dejar el filtro.
           options={[
             { value: TODOS, label: 'Todos los temas' },
             ...categorias.map((c) => ({
               value: c,
               label: (
-                <Tag color={colorPorTema.get(c)} style={{ marginInlineEnd: 0 }}>
+                <Tag color={colorTema(c)} style={{ marginInlineEnd: 0 }}>
                   {c}
                 </Tag>
               )
@@ -331,7 +181,15 @@ export default function Publicaciones(): JSX.Element {
           ]}
         />
         {filtrando && (
-          <Button type="link" size="small" onClick={limpiarFiltros}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              setBusqueda('')
+              setRango(null)
+              setCategoria(TODOS)
+            }}
+          >
             Limpiar filtros
           </Button>
         )}
