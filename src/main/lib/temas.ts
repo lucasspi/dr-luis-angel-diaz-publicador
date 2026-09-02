@@ -51,7 +51,13 @@ export async function asegurarTema(
   if (!slug) return { id: '', creado: false }
 
   const temas = await leerTemas(repoPath)
-  const existente = temas.find((t) => t.slug === slug)
+  // Primero por slug (la URL), después por el nombre normalizado. Lo segundo
+  // importa después de un renombrado: el slug se queda quieto pero el chip que
+  // ve el Dr. Luis lleva el nombre nuevo, y si solo se mirara el slug cada
+  // publicación siguiente daría de alta un tema repetido con el mismo nombre.
+  const existente =
+    temas.find((t) => t.slug === slug) ??
+    temas.find((t) => slugificarCategoria(t.nombre) === slug)
   if (existente) return { id: existente.id, creado: false }
 
   // El id nace del slug: legible en el frontmatter y en los diffs. A partir de
@@ -77,7 +83,13 @@ export async function renombrarTema(
   const tema = temas.find((t) => t.id === id)
   if (!tema) throw new Error(`No existe el tema "${id}" en el registro.`)
 
-  const choque = temas.find((t) => t.id !== id && t.nombre.toLowerCase() === limpio.toLowerCase())
+  // Mismo criterio de identidad que `asegurarTema`: dos temas chocan si sus
+  // nombres normalizan al mismo slug o si el nombre nuevo cae sobre la URL de
+  // otro tema. Comparar solo minúsculas dejaba pasar «Oración» vs «oracion».
+  const slugNuevo = slugificarCategoria(limpio)
+  const choque = temas.find(
+    (t) => t.id !== id && (slugificarCategoria(t.nombre) === slugNuevo || t.slug === slugNuevo)
+  )
   if (choque) {
     throw new Error(
       `Ya hay otro tema que se llama "${choque.nombre}". Dos temas con el mismo nombre serían indistinguibles en el sitio.`
