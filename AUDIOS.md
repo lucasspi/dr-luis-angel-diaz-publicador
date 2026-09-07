@@ -39,7 +39,7 @@ Referencias consultadas el 7 de septiembre de 2026:
 - https://aws.amazon.com/s3/pricing/
 - https://aws.amazon.com/cloudfront/faqs/
 
-Límites del módulo: 250 MB de entrada, 60 minutos de duración, 20 MB por MP3.
+Límites del módulo: 50 MB de entrada, 60 minutos de duración, 20 MB por MP3.
 No se recorta una grabación que exceda la duración; se rechaza. Estos límites
 controlan el tamaño por publicación, no constituyen un tope de facturación AWS.
 El historial Git crecerá con el archivo de audios; si el archivo crece mucho,

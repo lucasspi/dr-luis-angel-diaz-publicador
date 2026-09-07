@@ -143,7 +143,7 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
             {!audio && !preparando && <Dragger accept={ACEPTA} multiple={false} showUploadList={false} beforeUpload={soltar} style={{ padding: '12px 0' }}>
               <p className="ant-upload-drag-icon"><AudioOutlined /></p>
               <p className="ant-upload-text">Arrastra aquí tu nota de voz</p>
-              <p className="ant-upload-hint">O haz clic aquí para buscarla. Notas de WhatsApp, grabaciones del teléfono y otros audios. Hasta 60 minutos y 250 MB por archivo.</p>
+              <p className="ant-upload-hint">O haz clic aquí para buscarla. Notas de WhatsApp, grabaciones del teléfono y otros audios. Hasta 60 minutos y 50 MB por archivo.</p>
               <Button size="large" icon={<UploadOutlined />} onClick={e => { e.stopPropagation(); void seleccionar() }} style={{ marginTop: 8 }}>Buscar en el equipo</Button>
             </Dragger>}
             {preparando && <Typography.Text role="status">{ocupado}</Typography.Text>}

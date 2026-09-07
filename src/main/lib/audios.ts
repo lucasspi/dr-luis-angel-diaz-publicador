@@ -13,7 +13,7 @@ import { asegurarTema, RUTA_TEMAS } from './temas'
 import { slugificarCategoria } from './slug'
 
 const ejecutar = promisify(execFile)
-const MAX_ENTRADA = 250 * 1024 * 1024
+const MAX_ENTRADA = 50 * 1024 * 1024
 const MAX_SALIDA = 20 * 1024 * 1024
 import type { AudioPreparado, Oracion, ParrafoOracion } from '../../preload'
 interface Borrador { info: AudioPreparado; carpeta: string; archivo: string; original: string; parrafos?: ParrafoOracion[]; publicacion?: Oracion }
@@ -45,7 +45,7 @@ export async function prepararAudio(archivo: string): Promise<AudioPreparado> {
       throw new Error('Selecciona una nota de voz M4A, MP3, WAV, OGG, OPUS, AAC, FLAC, AMR, MP4 o WebM.')
     }
     const entrada = await stat(archivo)
-    if (!entrada.isFile() || entrada.size === 0 || entrada.size > MAX_ENTRADA) throw new Error('El archivo debe contener audio y pesar como máximo 250 MB.')
+    if (!entrada.isFile() || entrada.size === 0 || entrada.size > MAX_ENTRADA) throw new Error('El archivo debe contener audio y pesar como máximo 50 MB.')
     const ffmpeg = await binario('ffmpeg')
     const ffprobe = await binario('ffprobe')
     const carpeta = await mkdtemp(path.join(os.tmpdir(), 'oracion-'))
