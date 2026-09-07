@@ -166,13 +166,14 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
               {sinTranscriptor && <Alert type="info" showIcon message="Se publicará sólo el audio" description={<>Para publicar también el texto, hace falta el transcriptor. <Button type="link" onClick={abrirConfiguracion}>Configurar transcriptor</Button></>} />}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
                 <label htmlFor="audio-titulo">Título de la oración</label>
-                {sugiriendo && <Typography.Text type="secondary" role="status"><IconoIA /> Proponiendo título y descripción…</Typography.Text>}
                 {!sugiriendo && sugerenciaFallo && <Typography.Text type="secondary">No hubo sugerencia esta vez; escríbelos tú.</Typography.Text>}
-                {!sugiriendo && !!parrafos.length && <Button type="link" size="small" icon={<IconoIA style={{ fontSize: 16 }} />} disabled={enviando} onClick={() => void sugerir(audio.id, true)}>{sugerenciaFallo ? 'Intentar de nuevo' : 'Proponer otro título'}</Button>}
+                {!!parrafos.length && <Button type="link" icon={<IconoIA style={{ fontSize: 22 }} />} loading={sugiriendo} disabled={enviando} role={sugiriendo ? 'status' : undefined} onClick={() => void sugerir(audio.id, true)} style={{ paddingInline: 4 }}>
+                  {sugiriendo ? 'Proponiendo título y descripción…' : sugerenciaFallo ? 'Intentar de nuevo' : 'Proponer otro título'}
+                </Button>}
               </div>
-              <Input id="audio-titulo" size="large" value={titulo} maxLength={120} disabled={enviando} placeholder="Una oración por nuestra familia" onChange={e => actualizar({ titulo: e.target.value })} />
+              <Input id="audio-titulo" size="large" value={titulo} maxLength={120} disabled={enviando || sugiriendo} placeholder="Una oración por nuestra familia" onChange={e => actualizar({ titulo: e.target.value })} />
               <label htmlFor="audio-descripcion">Descripción (opcional)</label>
-              <Input.TextArea id="audio-descripcion" value={descripcion} maxLength={2000} autoSize={{ minRows: 2, maxRows: 6 }} disabled={enviando} onChange={e => actualizar({ descripcion: e.target.value })} />
+              <Input.TextArea id="audio-descripcion" value={descripcion} maxLength={2000} autoSize={{ minRows: 2, maxRows: 6 }} disabled={enviando || sugiriendo} onChange={e => actualizar({ descripcion: e.target.value })} />
               <label htmlFor="audio-tema">Tema (opcional)</label>
               {temas.length > 0 && <Space size={[4, 8]} wrap>
                 {temas.map(t => <Tag.CheckableTag key={t.id} checked={!temaNuevo.trim() && tema === t.nombre} onChange={() => actualizar({ tema: tema === t.nombre ? '' : t.nombre, temaNuevo: '' })} style={{ fontSize: 14, padding: '4px 12px', border: '1px solid #d9d9d9' }}>{t.nombre}</Tag.CheckableTag>)}
