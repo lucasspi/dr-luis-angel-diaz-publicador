@@ -1,6 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { prepararAudio, publicarAudio, listarAudios, transcribirAudio, cancelarTranscripcion, audioOcupado } from './lib/audios'
+import { GestorModelo } from './lib/transcripcion/modelo'
+import { encontrarWhisper } from './lib/transcripcion/motor'
 import { cargarConfig, getConfigPath } from './lib/config'
 import { listarCategorias } from './lib/categorias'
 import { listarPublicaciones } from './lib/publicaciones'
@@ -62,6 +65,19 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.spirandeli.drluisangeldiaz.publicador')
 
   servirImagenes()
+  const modelos = new GestorModelo(join(app.getPath('userData'), 'models', 'whisper'))
+  ipcMain.handle('transcriptor-estado', async () => ({ modelo: await modelos.consultar(), motorDisponible: !!(await encontrarWhisper()) }))
+  ipcMain.handle('transcriptor-descargar', () => modelos.download())
+  ipcMain.handle('transcriptor-cancelar-descarga', () => modelos.cancelar())
+  ipcMain.handle('transcriptor-eliminar', () => modelos.eliminar())
+  ipcMain.handle('transcribir-audio', (_event, id: string) => transcribirAudio(id, modelos, n => mainWindow?.webContents.send('transcripcion-progreso', n)))
+  ipcMain.handle('cancelar-transcripcion', () => cancelarTranscripcion())
+  app.on('before-quit', (event) => {
+    if (audioOcupado()) {
+      event.preventDefault()
+      if (mainWindow) dialog.showMessageBox(mainWindow, { type: 'info', message: 'Hay un audio en proceso.', detail: 'Espera a que termine o cancela la transcripción antes de cerrar.', buttons: ['Entendido'] })
+    } else modelos.cancelar()
+  })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -85,6 +101,26 @@ app.whenReady().then(() => {
   ipcMain.handle('obtener-config', async () => {
     const config = await cargarConfig()
     return { configurado: config !== null, configPath: getConfigPath() }
+  })
+
+  ipcMain.handle('elegir-audio', async () => {
+    if (!mainWindow) return null
+    const resultado = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: [{ name: 'Notas de voz', extensions: ['m4a', 'mp3', 'wav', 'ogg', 'opus', 'aac', 'flac', 'amr', 'mp4', 'webm'] }]
+    })
+    return resultado.canceled ? null : resultado.filePaths[0] ?? null
+  })
+  ipcMain.handle('preparar-audio', (_event, archivo: string) => prepararAudio(archivo))
+  ipcMain.handle('listar-audios', async () => {
+    const config = await cargarConfig()
+    if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
+    return listarAudios(config.repoPath)
+  })
+  ipcMain.handle('publicar-audio', async (_event, id: string, titulo: string, descripcion: string, textos?: string[]) => {
+    const config = await cargarConfig()
+    if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
+    return publicarAudio(config.repoPath, id, titulo, descripcion, textos)
   })
 
   ipcMain.handle('elegir-documento', async () => {
@@ -206,6 +242,7 @@ app.whenReady().then(() => {
   ipcMain.handle('obtener-version-app', () => app.getVersion())
 
   ipcMain.handle('instalar-actualizacion', () => {
+    if (audioOcupado()) throw new Error('Espera a que termine el audio antes de reiniciar.')
     instalarActualizacion()
   })
 

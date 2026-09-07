@@ -46,6 +46,7 @@ export async function prepararDocumento(
   avisar: AvisarProgreso
 ): Promise<DocumentoPreparado> {
 
+  if (!config.falApiKey) throw new Error('Falta la clave de fal.ai para las portadas de reflexiones. Las oraciones en audio no la necesitan.')
   avisar('Leyendo el documento…')
   const { texto: textoBruto, fechaMetadatos } = await extractDocument(filePath)
   if (textoBruto.length < 20) {

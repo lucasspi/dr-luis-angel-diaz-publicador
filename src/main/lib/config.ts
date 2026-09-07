@@ -24,9 +24,9 @@ export async function cargarConfig(): Promise<AppConfig | null> {
   try {
     const raw = await readFile(getConfigPath(), 'utf-8')
     const parsed = JSON.parse(raw)
-    if (!parsed.repoPath || !parsed.falApiKey) return null
+    if (!parsed.repoPath) return null
     // goatcounter es opcional: el app funcionaba antes de que existiera.
-    return parsed as AppConfig
+    return { ...parsed, falApiKey: parsed.falApiKey || '' } as AppConfig
   } catch {
     return null
   }

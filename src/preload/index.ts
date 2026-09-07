@@ -1,5 +1,30 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
+export interface ParrafoOracion { inicio: number; fin: number; texto: string }
+export interface EstadoModelo {
+  fase: 'ausente' | 'descargando' | 'verificando' | 'listo' | 'error'
+  nombre: string; bytes: number; porcentaje: number; mensaje?: string; enUso?: boolean
+}
+export interface ConfigTranscripcion { modelo: EstadoModelo; motorDisponible: boolean }
+export interface Oracion {
+  parrafos?: ParrafoOracion[]
+  id: string
+  titulo: string
+  descripcion: string
+  fecha: string
+  duracion: number
+  bytes: number
+  audio: string
+}
+export interface AudioPreparado {
+  id: string
+  nombre: string
+  bytesOriginal: number
+  bytes: number
+  duracion: number
+  preview: string
+}
+
 export interface ConfigInfo {
   configurado: boolean
   configPath: string
@@ -72,6 +97,22 @@ export type EstadoActualizacion =
   | { fase: 'error'; mensaje: string }
 
 const api = {
+  estadoTranscriptor: (): Promise<ConfigTranscripcion> => ipcRenderer.invoke('transcriptor-estado'),
+  descargarTranscriptor: (): Promise<void> => ipcRenderer.invoke('transcriptor-descargar'),
+  cancelarDescargaTranscriptor: (): Promise<void> => ipcRenderer.invoke('transcriptor-cancelar-descarga'),
+  eliminarTranscriptor: (): Promise<void> => ipcRenderer.invoke('transcriptor-eliminar'),
+  transcribirAudio: (id: string): Promise<ParrafoOracion[]> => ipcRenderer.invoke('transcribir-audio', id),
+  cancelarTranscripcion: (): Promise<void> => ipcRenderer.invoke('cancelar-transcripcion'),
+  onProgresoTranscripcion: (callback: (porcentaje: number) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, porcentaje: number): void => callback(porcentaje)
+    ipcRenderer.on('transcripcion-progreso', listener)
+    return () => ipcRenderer.removeListener('transcripcion-progreso', listener)
+  },
+  elegirAudio: (): Promise<string | null> => ipcRenderer.invoke('elegir-audio'),
+  prepararAudio: (archivo: string): Promise<AudioPreparado> => ipcRenderer.invoke('preparar-audio', archivo),
+  listarAudios: (): Promise<Oracion[]> => ipcRenderer.invoke('listar-audios'),
+  publicarAudio: (id: string, titulo: string, descripcion: string, textos?: string[]): Promise<ResultadoProceso> =>
+    ipcRenderer.invoke('publicar-audio', id, titulo, descripcion, textos),
   obtenerConfig: (): Promise<ConfigInfo> => ipcRenderer.invoke('obtener-config'),
   elegirDocumento: (): Promise<string | null> => ipcRenderer.invoke('elegir-documento'),
   listarCategorias: (): Promise<string[]> => ipcRenderer.invoke('listar-categorias'),

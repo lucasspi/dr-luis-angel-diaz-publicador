@@ -57,8 +57,8 @@ ok "Homebrew listo ($(brew --version | head -1))"
 
 # ------------------------------------------------------------- 2. git + node
 azul "2/7 git y node"
-for herramienta in git node; do
-  if ! command -v "$herramienta" >/dev/null 2>&1; then
+for herramienta in git node ffmpeg whisper-cpp; do
+  if ! brew list --versions "$herramienta" >/dev/null 2>&1; then
     brew install "$herramienta"
   fi
 done

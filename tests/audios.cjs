@@ -1,0 +1,67 @@
+// Integration against temporary repositories only; never pushes to GitHub.
+const assert = require('node:assert/strict')
+const fs = require('node:fs/promises')
+const path = require('node:path')
+const os = require('node:os')
+const { execFileSync } = require('node:child_process')
+const ts = require('typescript')
+;(async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'test-oraciones-'))
+  try {
+    for (const file of ['audios', 'git', 'transcripcion/motor', 'transcripcion/segmentos']) {
+      const source = await fs.readFile(path.join(__dirname, '../src/main/lib', `${file}.ts`), 'utf8')
+      await fs.mkdir(path.dirname(path.join(root, `${file}.js`)), { recursive: true })
+      await fs.writeFile(path.join(root, `${file}.js`), ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText)
+    }
+    const { prepararAudio, publicarAudio, listarAudios, transcribirAudio } = require(path.join(root, 'audios.js'))
+    const remote = path.join(root, 'remote.git'), repo = path.join(root, 'repo')
+    const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+    await fs.mkdir(repo)
+    git('init', '--bare', remote); git('init', '-b', 'master')
+    git('config', 'user.name', 'Audio Test'); git('config', 'user.email', 'audio@example.invalid')
+    await fs.writeFile(path.join(repo, 'README.md'), 'Temporary fixture')
+    git('add', '.'); git('commit', '-m', 'fixture'); git('remote', 'add', 'origin', remote); git('push', '-u', 'origin', 'master')
+    const input = path.join(root, 'voice.wav')
+    execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', input])
+    await assert.rejects(prepararAudio(path.join(root, 'invalid.txt')), /Selecciona/)
+    const empty = path.join(root, 'empty.mp3'); await fs.writeFile(empty, '')
+    await assert.rejects(prepararAudio(empty), /250 MB/)
+    const corrupt = path.join(root, 'corrupt.mp3'); await fs.writeFile(corrupt, 'not audio')
+    await assert.rejects(prepararAudio(corrupt), /No se pudo leer/)
+    const audio = await prepararAudio(input)
+    require(path.join(root, 'transcripcion/motor.js')).ejecutarWhisper = async (_model, _wav, output) => {
+      await fs.writeFile(output + '.json', JSON.stringify({ transcription: [
+        { offsets: { from: 0, to: 900 }, text: 'Gracias, Señor.' },
+        { offsets: { from: 1100, to: 1900 }, text: 'Amén.' }
+      ] }))
+    }
+    const parrafos = await transcribirAudio(audio.id, { usar: fn => fn('fixture') }, () => {})
+    assert.equal(parrafos.length, 2)
+    await assert.rejects(publicarAudio(repo, audio.id, 'Oración', '', ['Incomplete']), /Vuelve a transcribir/)
+
+    assert(audio.bytes < audio.bytesOriginal); assert(audio.duracion > 1.9 && audio.duracion < 2.2)
+    assert(audio.preview.startsWith('data:audio/mpeg;base64,'))
+    await assert.rejects(publicarAudio(repo, audio.id, '', ''), /título/)
+    await fs.writeFile(path.join(repo, 'pending.txt'), 'user edit')
+    await assert.rejects(publicarAudio(repo, audio.id, 'Oración', ''), /cambios pendientes/)
+    await fs.rm(path.join(repo, 'pending.txt'))
+    // Reject only pushes, so initial sync succeeds and tests the retry path.
+    const hook = path.join(remote, 'hooks/pre-receive')
+    await fs.writeFile(hook, '#!/bin/sh\nexit 1\n', { mode: 0o755 })
+    await assert.rejects(publicarAudio(repo, audio.id, 'Oración <familia>', 'Una pausa\nCon Dios', ['Gracias por este día.', 'Amén.']), /guardada localmente/)
+    const commit = git('rev-parse', 'HEAD')
+    assert.equal((await listarAudios(repo)).length, 1)
+    await fs.rm(hook)
+    const result = await publicarAudio(repo, audio.id, 'Oración <familia>', 'Una pausa\nCon Dios', ['Gracias por este día.', 'Amén.'])
+    assert(result.url.endsWith(`#${audio.id}`)); assert.equal(git('rev-parse', 'HEAD'), commit)
+    assert.equal(git('status', '--porcelain'), '')
+    assert.equal(git('rev-parse', 'origin/master'), commit)
+    await assert.rejects(publicarAudio(repo, audio.id, 'Duplicate', ''), /Vuelve a seleccionar/)
+    const { cargarOraciones } = await import('../../site/content/oraciones.mjs')
+    assert.equal(cargarOraciones(repo).length, 1)
+    assert.deepEqual(cargarOraciones(repo)[0].parrafos, [{ inicio: 0, fin: 0.9, texto: 'Gracias por este día.' }, { inicio: 1.1, fin: 1.9, texto: 'Amén.' }])
+    await fs.rm(path.join(repo, 'public/audio', `${audio.id}.mp3`))
+    assert.throws(() => cargarOraciones(repo))
+    console.log('PASS: compression, malformed inputs, validation, dirty repo, push failure/retry without duplicates, catalog and missing media.')
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})().catch(error => { console.error(error); process.exitCode = 1 })

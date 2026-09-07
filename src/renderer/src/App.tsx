@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { App as AntApp, ConfigProvider, Tabs, Typography } from 'antd'
+import { App as AntApp, ConfigProvider, Tabs, Typography, Button, Badge } from 'antd'
 import {
+  SettingOutlined,
   BarChartOutlined,
   CloudUploadOutlined,
   TagsOutlined,
   UnorderedListOutlined
 } from '@ant-design/icons'
 import esES from 'antd/locale/es_ES'
-import { BarraActualizacion, type EstadoUpdate } from './components/BarraActualizacion'
+import { type EstadoUpdate } from './components/BarraActualizacion'
+import Audios from './pages/Audios'
+import { Configuracion } from './components/Configuracion'
 import Publicador from './pages/Publicador'
 import Publicaciones from './pages/Publicaciones'
 import Temas from './pages/Temas'
@@ -30,6 +33,7 @@ const HUECO_SEMAFOROS = 82
 // por file://, donde las rutas con path real no resuelven.
 const PAGINAS = [
   { ruta: '/publicar', etiqueta: 'Publicar', icono: <CloudUploadOutlined /> },
+  { ruta: '/audios', etiqueta: 'Oraciones en audio', icono: <CloudUploadOutlined /> },
   { ruta: '/publicaciones', etiqueta: 'Publicaciones', icono: <UnorderedListOutlined /> },
   { ruta: '/temas', etiqueta: 'Temas', icono: <TagsOutlined /> },
   { ruta: '/visitas', etiqueta: 'Visitas', icono: <BarChartOutlined /> }
@@ -37,6 +41,7 @@ const PAGINAS = [
 
 function Cascara(): JSX.Element {
   const [estadoUpdate, setEstadoUpdate] = useState<EstadoUpdate>({ fase: 'inactivo' })
+  const [configuracion, setConfiguracion] = useState(false)
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
@@ -46,6 +51,7 @@ function Cascara(): JSX.Element {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#fff' }}>
+      <Configuracion abierto={configuracion} cerrar={() => setConfiguracion(false)} actualizacion={estadoUpdate} />
       <header
         style={{
           ...ARRASTRABLE,
@@ -64,7 +70,9 @@ function Cascara(): JSX.Element {
           Publicador de reflexiones
         </Text>
         <div style={{ ...NO_ARRASTRABLE, minWidth: 0, textAlign: 'right' }}>
-          <BarraActualizacion estado={estadoUpdate} />
+          <Badge dot={estadoUpdate.fase === 'descargada'}>
+            <Button type="text" icon={<SettingOutlined />} aria-label="Configuración" onClick={() => setConfiguracion(true)} />
+          </Badge>
         </div>
       </header>
 
@@ -91,6 +99,7 @@ function Cascara(): JSX.Element {
       <main style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 24 }}>
         <Routes>
           <Route path="/publicar" element={<Publicador />} />
+          <Route path="/audios" element={<Audios abrirConfiguracion={() => setConfiguracion(true)} />} />
           <Route path="/publicaciones" element={<Publicaciones />} />
           <Route path="/temas" element={<Temas />} />
           <Route path="/visitas" element={<Visitas />} />
