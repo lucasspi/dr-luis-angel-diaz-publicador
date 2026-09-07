@@ -122,7 +122,8 @@ app.whenReady().then(() => {
     // Los párrafos ya corregidos por el usuario mandan; si no llegan, vale la transcripción cruda.
     const texto = Array.isArray(textos) && textos.length ? textos.map(String).join('\n\n') : textoTranscrito(id)
     if (!texto.trim()) throw new Error('No hay texto para sugerir un título.')
-    return titularOracionConCodex(texto)
+    // El renderer no muestra este error (el fallback es escribir a mano); queda aquí para diagnosticar.
+    return titularOracionConCodex(texto).catch((e: unknown) => { console.error('[sugerir-titulo-audio]', e); throw e })
   })
   ipcMain.handle('publicar-audio', async (_event, id: string, titulo: string, descripcion: string, tema: string, textos?: string[]) => {
     const config = await cargarConfig()

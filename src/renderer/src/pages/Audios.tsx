@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { Alert, Button, Card, Input, Space, Typography, Checkbox, Progress, Popconfirm, Upload, message, Tag, Collapse } from 'antd'
 import type { RcFile } from 'antd/es/upload'
-import { AudioOutlined, UploadOutlined, CloseOutlined, BulbOutlined } from '@ant-design/icons'
+import { AudioOutlined, UploadOutlined, CloseOutlined } from '@ant-design/icons'
+import { IconoIA } from '../components/IconoIA'
 import type { AudioPreparado, ParrafoOracion, Tema } from '../../../preload'
 import { Encabezado } from '../components/Encabezado'
 
@@ -165,9 +166,9 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
               {sinTranscriptor && <Alert type="info" showIcon message="Se publicará sólo el audio" description={<>Para publicar también el texto, hace falta el transcriptor. <Button type="link" onClick={abrirConfiguracion}>Configurar transcriptor</Button></>} />}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
                 <label htmlFor="audio-titulo">Título de la oración</label>
-                {sugiriendo && <Typography.Text type="secondary" role="status"><BulbOutlined /> Proponiendo título y descripción…</Typography.Text>}
+                {sugiriendo && <Typography.Text type="secondary" role="status"><IconoIA /> Proponiendo título y descripción…</Typography.Text>}
                 {!sugiriendo && sugerenciaFallo && <Typography.Text type="secondary">No hubo sugerencia esta vez; escríbelos tú.</Typography.Text>}
-                {!sugiriendo && !!parrafos.length && <Button type="link" size="small" icon={<BulbOutlined />} disabled={enviando} onClick={() => void sugerir(audio.id, true)}>{sugerenciaFallo ? 'Intentar de nuevo' : 'Proponer otro título'}</Button>}
+                {!sugiriendo && !!parrafos.length && <Button type="link" size="small" icon={<IconoIA style={{ fontSize: 16 }} />} disabled={enviando} onClick={() => void sugerir(audio.id, true)}>{sugerenciaFallo ? 'Intentar de nuevo' : 'Proponer otro título'}</Button>}
               </div>
               <Input id="audio-titulo" size="large" value={titulo} maxLength={120} disabled={enviando} placeholder="Una oración por nuestra familia" onChange={e => actualizar({ titulo: e.target.value })} />
               <label htmlFor="audio-descripcion">Descripción (opcional)</label>

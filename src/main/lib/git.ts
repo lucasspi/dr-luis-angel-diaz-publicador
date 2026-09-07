@@ -24,5 +24,7 @@ export function git(args: string[], cwd: string): Promise<string> {
 // lista de publicaciones muestra la foto del último pull, no lo que está en el
 // sitio — y el Dr. Luis publica desde su Mac, no desde este clone.
 export async function sincronizar(repoPath: string): Promise<void> {
-  await git(['pull', '--rebase', 'origin', 'master'], repoPath)
+  // --autostash: si hay cambios locales a medias (el clone de Lucas), se apartan
+  // y se reaplican solos; en un clone limpio no hace nada.
+  await git(['pull', '--rebase', '--autostash', 'origin', 'master'], repoPath)
 }

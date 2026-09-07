@@ -145,7 +145,11 @@ export async function publicarAudio(repo: string, id: string, titulo: string, de
     // Un push fallido se puede reintentar sin crear otra oración ni otro commit.
     if (!borrador.publicacion) {
       const parrafos = revisarParrafos(borrador.parrafos, textos)
-      if ((await git(['status', '--porcelain'], repo)).trim()) throw new Error('Hay cambios pendientes en el sitio. Contacta a Lucas antes de publicar el audio.')
+      // En el Mac del Dr. Luis el clone está limpio. En el de Lucas puede haber
+      // trabajo a medias en otras partes del sitio; eso no estorba (el commit va
+      // con --only y el pull con --autostash). Sólo bloquea lo que pisaría esta operación.
+      const sucios = (await git(['status', '--porcelain', '--', 'content/oraciones.json', 'content/oraciones', 'content/temas.json', 'public/audio'], repo)).trim()
+      if (sucios) throw new Error(`Hay cambios pendientes en los archivos de oraciones del sitio. Contacta a Lucas antes de publicar el audio.\n${sucios}`)
       await sincronizar(repo)
       const catalogoPrevio = await leerCatalogo(repo)
       if (catalogoPrevio.some(o => o.id === id)) throw new Error('Esta oración ya está publicada.')
