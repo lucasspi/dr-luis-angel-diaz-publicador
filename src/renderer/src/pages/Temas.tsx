@@ -127,7 +127,7 @@ function DialogoRenombrar({
 }
 
 export default function Temas(): JSX.Element {
-  const { publicaciones, temas, error, recargar } = usePublicaciones()
+  const { publicaciones, oraciones, temas, error, recargar } = usePublicaciones()
 
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
@@ -204,6 +204,10 @@ export default function Temas(): JSX.Element {
     )
   }
 
+  const cuentasOraciones = new Map<string, number>()
+  for (const oracion of oraciones) {
+    if (oracion.temaId) cuentasOraciones.set(oracion.temaId, (cuentasOraciones.get(oracion.temaId) ?? 0) + 1)
+  }
   const columnas: ColumnsType<Fila> = [
     {
       title: '',
@@ -231,6 +235,14 @@ export default function Temas(): JSX.Element {
       sorter: (a, b) => a.cantidad - b.cantidad,
       render: (cantidad: number) =>
         cantidad > 0 ? <Text strong>{cantidad}</Text> : <Text type="secondary">0</Text>
+    },
+    {
+      title: 'Oraciones',
+      key: 'oraciones',
+      width: 130,
+      align: 'right',
+      sorter: (a, b) => (cuentasOraciones.get(a.id) ?? 0) - (cuentasOraciones.get(b.id) ?? 0),
+      render: (_, f) => <Text strong={(cuentasOraciones.get(f.id) ?? 0) > 0}>{cuentasOraciones.get(f.id) ?? 0}</Text>
     },
     {
       title: 'Primera',
@@ -290,7 +302,7 @@ export default function Temas(): JSX.Element {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <CabeceraLista
         titulo="Temas"
-        descripcion="Los temas del sitio y cuántas reflexiones tiene cada uno. Doble clic en una fila para cambiar el nombre."
+        descripcion="Los temas del sitio y cuántas reflexiones y oraciones tiene cada uno. Doble clic en una fila para cambiar el nombre."
         recuento={`${visibles.length} tema${visibles.length === 1 ? '' : 's'}`}
       />
 

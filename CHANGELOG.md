@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.4.2
+
+- Columna Oraciones en la tabla de temas, con conteo por tema y ordenación.
+
 ## 0.4.1
 
 - Selector de tema destacado en el formulario de audio, con campo más grande e indicación de desplegable.

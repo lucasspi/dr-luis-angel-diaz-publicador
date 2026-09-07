@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { Publicacion, Tema } from '../../../preload'
+import type { Publicacion, Tema, Oracion } from '../../../preload'
 
 // Colores de los chips de tema. Arbitrarios y sin guardar en ningún lado: se
 // reparten por posición en la lista ordenada de temas, no por hash del nombre.
@@ -23,6 +23,7 @@ const PALETA = [
 ]
 
 interface Datos {
+  oraciones: Oracion[]
   publicaciones: Publicacion[] | null
   /** El registro de content/temas.json — la identidad de cada tema. */
   temas: Tema[]
@@ -46,6 +47,7 @@ const Contexto = createContext<Datos | null>(null)
  */
 export function ProveedorPublicaciones({ children }: { children: ReactNode }): JSX.Element {
   const [publicaciones, setPublicaciones] = useState<Publicacion[] | null>(null)
+  const [oraciones, setOraciones] = useState<Oracion[]>([])
   const [temas, setTemas] = useState<Tema[]>([])
   const [error, setError] = useState('')
   const [avisoSync, setAvisoSync] = useState('')
@@ -59,7 +61,9 @@ export function ProveedorPublicaciones({ children }: { children: ReactNode }): J
       setAvisoSync(resultado.avisoSync)
       // El registro se relee junto con los posts: después de un renombrado o
       // de un pull, las dos cosas tienen que moverse a la vez.
-      setTemas(await window.api.listarTemas())
+      const [nuevosTemas, nuevosAudios] = await Promise.all([window.api.listarTemas(), window.api.listarAudios()])
+      setTemas(nuevosTemas)
+      setOraciones(nuevosAudios)
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -87,6 +91,7 @@ export function ProveedorPublicaciones({ children }: { children: ReactNode }): J
   const valor = useMemo<Datos>(
     () => ({
       publicaciones,
+      oraciones,
       temas,
       error,
       avisoSync,
@@ -96,7 +101,7 @@ export function ProveedorPublicaciones({ children }: { children: ReactNode }): J
       recargar,
       descartarAviso: () => setAvisoSync('')
     }),
-    [publicaciones, temas, error, avisoSync, sincronizando, categorias, colores, recargar]
+    [publicaciones, oraciones, temas, error, avisoSync, sincronizando, categorias, colores, recargar]
   )
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>
