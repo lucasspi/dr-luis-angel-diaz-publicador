@@ -75,7 +75,9 @@ export async function publicarDocumentoPreparado(
   preparado: DocumentoPreparado,
   categoria: string,
   config: AppConfig,
-  avisar: AvisarProgreso
+  avisar: AvisarProgreso,
+  comunicar = false,
+  adiarEnvio = false
 ): Promise<{ url: string }> {
   const { formateada, fecha, slug, imagenRelativa, imagenAbsoluta } = preparado
 
@@ -93,7 +95,8 @@ export async function publicarDocumentoPreparado(
     resumen: formateada.resumen,
     slug,
     cuerpo_markdown: formateada.cuerpo_markdown,
-    imagenRelativa
+    imagenRelativa,
+    comunicar
   })
 
   await registrarReflexion(config.repoPath, {
@@ -109,7 +112,7 @@ export async function publicarDocumentoPreparado(
     RUTA_CATALOGO
   ]
   if (temaNuevo) archivos.push(RUTA_TEMAS)
-  await publicar(config.repoPath, formateada.titulo, archivos)
+  await publicar(config.repoPath, formateada.titulo, archivos, adiarEnvio)
 
   return { url: `https://drluisangeldiaz.com/${slug}` }
 }

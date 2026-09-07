@@ -1,0 +1,11 @@
+.audio-campos { display: flex; flex-direction: column; gap: 14px; }
+.audio-campos .publicar-paso { margin-bottom: 6px; }
+.audio-campos .publicar-etiqueta { margin-bottom: 0; }
+.audio-campos audio { border: 1px solid #e5eae6; border-radius: 28px; margin-block: 4px; }
+.audio-campos .ant-upload-drag { background: #f7faf8; border-color: #cbdcd1; border-radius: 12px; }
+.audio-campos .ant-upload-hint { max-width: 510px; margin-inline: auto; padding: 0 16px; }
+.audio-campos .ant-collapse { background: #f7faf8; border: 1px solid #e5eae6; border-radius: 10px; }
+.audio-campos .ant-select-selector { min-height: 40px; align-items: center; }
+.audio-campos .ant-select-selection-search-input { height: 38px !important; }
+.audio-campos .ant-input { font-size: 16px; }
+.audio-formulario .publicar-resumen { gap: 20px; }

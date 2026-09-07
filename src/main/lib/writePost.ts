@@ -12,6 +12,7 @@ export interface DatosPost {
   slug: string
   cuerpo_markdown: string
   imagenRelativa: string
+  comunicar?: boolean
 }
 
 export async function escribirPost(
@@ -31,6 +32,7 @@ export async function escribirPost(
     titulo: datos.titulo,
     fecha: datos.fecha,
     publicado: true,
+    comunicar: datos.comunicar === true,
     resumen: datos.resumen
   }
   if (datos.temaId) frontmatter.tema = datos.temaId

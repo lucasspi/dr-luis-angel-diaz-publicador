@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Button, Input, List, message, Progress, Result, Space, Spin, Table, Tag, Typography, Upload } from 'antd'
+import { Button, Checkbox, ConfigProvider, Input, Select, Switch, List, message, Progress, Result, Space, Spin, Table, Tag, Typography, Upload } from 'antd'
 import { Encabezado } from '../components/Encabezado'
 import {
   CheckCircleOutlined,
+  CloudUploadOutlined,
+  MailOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
   ExportOutlined,
@@ -10,6 +12,7 @@ import {
   InboxOutlined,
   SyncOutlined
 } from '@ant-design/icons'
+import './Publicador.css'
 import type { RcFile } from 'antd/es/upload'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -21,6 +24,7 @@ const MAX_ARCHIVOS_LOTE = 10
 type ArquivoSelecionado = {
   filePath: string
   nomeArquivo: string
+  comunicar?: boolean
 }
 
 type ResultadoArquivo = ArquivoSelecionado &
@@ -49,82 +53,53 @@ type Estado =
   | { fase: 'concluido'; resultados: ResultadoArquivo[]; categoria: string }
   | { fase: 'error'; mensaje: string }
 
-// Un paso intermedio entre soltar el documento y publicar: elegir el tema.
-// Chips con las categorías que ya existen en el sitio (para reutilizarlas) o
-// un campo libre para estrenar una nueva.
-function ElegirCategoria({
-  archivos,
-  categorias,
-  onPublicar,
-  onCancelar
-}: {
+export function ElegirCategoria({ archivos, categorias, onPublicar, onCancelar }: {
   archivos: ArquivoSelecionado[]
   categorias: string[]
-  onPublicar: (categoria: string) => void
+  onPublicar: (categoria: string, avisos: string[]) => void
   onCancelar: () => void
 }): JSX.Element {
   const [elegida, setElegida] = useState('')
   const [nueva, setNueva] = useState('')
-
-  const categoriaFinal = nueva.trim() || elegida
-
-  return (
-    <Space direction="vertical" size="large" style={{ width: '100%', padding: '8px 0' }}>
-      <div>
-        <Paragraph style={{ marginBottom: 8, textAlign: 'center' }}>
-          <FileTextOutlined />{' '}
-          <Text strong>
-            {archivos.length === 1 ? archivos[0].nomeArquivo : `${archivos.length} documentos selecionados`}
-          </Text>
-        </Paragraph>
-        {archivos.length > 1 && (
-          <List
-            size="small"
-            bordered
-            dataSource={archivos}
-            style={{ maxHeight: 180, overflowY: 'auto' }}
-            renderItem={(arquivo) => <List.Item>{arquivo.nomeArquivo}</List.Item>}
-          />
-        )}
+  const [crearTema, setCrearTema] = useState(categorias.length === 0)
+  const [avisos, setAvisos] = useState<string[]>([])
+  const categoriaFinal = crearTema ? nueva.trim() : elegida
+  const opciones = [...new Set(categorias)].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+  const normalizar = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
+  return <ConfigProvider theme={{ token: { colorPrimary: '#1c6e58', borderRadius: 8 } }}>
+    <div className="publicar-formulario">
+      <section className="publicar-panel">
+        <div className="publicar-paso"><span>1</span><div><Typography.Title level={4}>Documentos seleccionados</Typography.Title><Text type="secondary">{archivos.length} {archivos.length === 1 ? 'reflexión lista' : 'reflexiones listas'} para publicar</Text></div><Tag>WORD / PDF</Tag></div>
+        <div className="publicar-archivos">
+          {archivos.map(archivo => <div className="publicar-archivo" key={archivo.filePath}>
+            <FileTextOutlined className="publicar-archivo-icono" />
+            <div className="publicar-archivo-nombre"><Text strong title={archivo.nomeArquivo}>{archivo.nomeArquivo}</Text><Text type="secondary">{avisos.includes(archivo.filePath) ? 'Sitio web + aviso por correo' : 'Solo en el sitio web'}</Text></div>
+            <label className="publicar-correo-control">
+              <span>Avisar por correo</span>
+              <Switch checkedChildren="Sí" unCheckedChildren="No" checked={avisos.includes(archivo.filePath)} aria-label={`Avisar por correo: ${archivo.nomeArquivo}`} onChange={checked => setAvisos(prev => checked ? [...prev, archivo.filePath] : prev.filter(p => p !== archivo.filePath))} />
+            </label>
+          </div>)}
+        </div>
+        <div className="publicar-aviso">
+          <MailOutlined /><div><Text strong>Avisar a los suscriptores</Text><Paragraph type="secondary">Elige «Sí» en «Avisar por correo» para las reflexiones que quieras comunicar. Las seleccionadas se reunirán en un único correo por suscriptor, con un enlace a cada reflexión. Las demás se publicarán únicamente en el sitio.</Paragraph>
+          {archivos.length > 1 && <Checkbox checked={avisos.length === archivos.length} indeterminate={avisos.length > 0 && avisos.length < archivos.length} onChange={e => setAvisos(e.target.checked ? archivos.map(a => a.filePath) : [])}>Avisar sobre todas las reflexiones</Checkbox>}</div>
+        </div>
+      </section>
+      <section className="publicar-panel">
+        <div className="publicar-paso"><span>2</span><div><Typography.Title level={4}>Elige el tema</Typography.Title><Text type="secondary">{archivos.length > 1 ? 'Se aplicará a todos los documentos de este lote.' : 'Ayuda a tus lectores a encontrar esta reflexión.'}</Text></div></div>
+        <label className="publicar-etiqueta" htmlFor={crearTema ? 'nuevo-tema' : 'tema-reflexion'}>{crearTema ? 'Nombre del nuevo tema' : 'Tema de la reflexión'}</label>
+        {crearTema ? <Input id="nuevo-tema" size="large" value={nueva} onChange={e => setNueva(e.target.value)} placeholder="Ej.: Familia, Oración, Vida cristiana…" maxLength={160} /> :
+          <Select id="tema-reflexion" aria-label="Tema de la reflexión" size="large" showSearch placeholder="Busca y selecciona un tema" value={elegida || undefined} onChange={setElegida} style={{ width: '100%' }}
+            options={opciones.map(c => ({ value: c, label: c }))} filterOption={(input, option) => normalizar(String(option?.label || '')).includes(normalizar(input))} />}
+        <Button type="link" style={{ paddingLeft: 0, marginTop: 6 }} onClick={() => setCrearTema(v => !v)} disabled={crearTema && categorias.length === 0}>{crearTema ? 'Elegir un tema existente' : '+ Crear un tema nuevo'}</Button>
+      </section>
+      <div className="publicar-resumen">
+        <div><Text strong>{archivos.length} {archivos.length === 1 ? 'reflexión' : 'reflexiones'} en el sitio</Text><br /><Text type="secondary">{avisos.length ? `${avisos.length} ${avisos.length === 1 ? 'seleccionada' : 'seleccionadas'} para avisar por correo` : 'Sin avisos por correo'}</Text></div>
+        <Space><Button size="large" onClick={onCancelar}>Cancelar</Button><Button size="large" type="primary" icon={<CloudUploadOutlined />} disabled={!categoriaFinal} onClick={() => onPublicar(categoriaFinal, avisos)}>{archivos.length === 1 ? 'Publicar reflexión' : `Publicar ${archivos.length} reflexiones`}</Button></Space>
       </div>
-
-      <div>
-        <Paragraph style={{ marginBottom: 8 }}>¿Cuál es el tema de esta reflexión?</Paragraph>
-        {categorias.length > 0 && (
-          <Space size={[4, 8]} wrap style={{ marginBottom: 12 }}>
-            {categorias.map((cat) => (
-              <Tag.CheckableTag
-                key={cat}
-                checked={!nueva.trim() && elegida === cat}
-                onChange={() => {
-                  setElegida(cat)
-                  setNueva('')
-                }}
-                style={{ fontSize: 14, padding: '4px 12px', border: '1px solid #d9d9d9' }}
-              >
-                {cat}
-              </Tag.CheckableTag>
-            ))}
-          </Space>
-        )}
-        <Input
-          placeholder={categorias.length > 0 ? 'O escribe un tema nuevo…' : 'Ej.: Ministerio, Oración, Familia…'}
-          value={nueva}
-          onChange={(e) => setNueva(e.target.value)}
-          onPressEnter={() => categoriaFinal && onPublicar(categoriaFinal)}
-          allowClear
-        />
-      </div>
-
-      <Space style={{ justifyContent: 'center', width: '100%' }}>
-        <Button onClick={onCancelar}>Cancelar</Button>
-        <Button type="primary" disabled={!categoriaFinal} onClick={() => onPublicar(categoriaFinal)}>
-          {archivos.length === 1 ? 'Publicar' : `Publicar ${archivos.length} reflexiones`}
-          {categoriaFinal ? ` en «${categoriaFinal}»` : ''}
-        </Button>
-      </Space>
-    </Space>
-  )
+      <Paragraph type="secondary" className="publicar-ayuda">Los avisos se procesan después de que las reflexiones estén disponibles en el sitio, cuando el servicio de correo esté activado.</Paragraph>
+    </div>
+  </ConfigProvider>
 }
 
 type LinhaProcessamento = ArquivoSelecionado & {
@@ -362,7 +337,8 @@ export default function Publicador(): JSX.Element {
     try {
       const respuesta = await window.api.procesarDocumentos(
         archivos.map((arquivo) => arquivo.filePath),
-        categoria
+        categoria,
+        archivos.filter(a => a.comunicar === true).map(a => a.filePath)
       )
       const resultados: ResultadoArquivo[] = respuesta.map((resultado) => {
         const arquivo = archivos.find((item) => item.filePath === resultado.filePath)!
@@ -390,7 +366,7 @@ export default function Publicador(): JSX.Element {
       <div style={{ marginBottom: 24 }}>
         <Encabezado
           titulo="Publicar reflexión"
-          descripcion="Arrastra un Word o PDF, elige el tema y la reflexión se publica sola en el sitio."
+          descripcion="Comparte nuevas lecturas y elige cuáles anunciar a tus suscriptores."
         />
       </div>
       {estado.fase === 'cargando' && (
@@ -415,6 +391,7 @@ export default function Publicador(): JSX.Element {
 
       {estado.fase === 'listo' && (
         <Dragger
+          style={{ background: '#f5f9f6', borderColor: '#b9d5c9', borderRadius: 16, padding: '32px 16px' }}
           multiple
           accept=".docx,.pdf"
           showUploadList={false}
@@ -424,7 +401,7 @@ export default function Publicador(): JSX.Element {
           }}
         >
           <p className="ant-upload-drag-icon">
-            <InboxOutlined />
+            <InboxOutlined style={{ color: '#1c6e58' }} />
           </p>
           <p className="ant-upload-text">Arrastra aquí uno o varios documentos (Word o PDF)</p>
           <p className="ant-upload-hint">O haz clic para elegirlos · Máximo 10 documentos por vez</p>
@@ -435,7 +412,7 @@ export default function Publicador(): JSX.Element {
         <ElegirCategoria
           archivos={estado.archivos}
           categorias={estado.categorias}
-          onPublicar={(categoria) => procesar(estado.archivos, categoria)}
+          onPublicar={(categoria, avisos) => procesar(estado.archivos.map(a => ({ ...a, comunicar: avisos.includes(a.filePath) })), categoria)}
           onCancelar={() => setEstado({ fase: 'listo' })}
         />
       )}
@@ -506,7 +483,7 @@ export default function Publicador(): JSX.Element {
                     )
                   }
                   title={resultado.nomeArquivo}
-                  description={resultado.status === 'erro' ? resultado.mensagem : 'Publicada'}
+                  description={resultado.status === 'erro' ? resultado.mensagem : resultado.comunicar ? 'Publicada · Seleccionada para aviso por correo' : 'Publicada · Solo en el sitio web'}
                 />
               </List.Item>
             )}

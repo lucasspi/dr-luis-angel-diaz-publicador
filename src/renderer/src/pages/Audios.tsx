@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
-import { Alert, Button, Card, Input, Space, Typography, Checkbox, Progress, Popconfirm, Upload, message, Collapse } from 'antd'
+import { Alert, Button, ConfigProvider, Input, Space, Typography, Checkbox, Progress, Popconfirm, Upload, message, Collapse } from 'antd'
 import type { RcFile } from 'antd/es/upload'
-import { AudioOutlined, UploadOutlined, CloseOutlined } from '@ant-design/icons'
+import { AudioOutlined, UploadOutlined } from '@ant-design/icons'
 import { IconoIA } from '../components/IconoIA'
 import { SelectorTema } from '../components/SelectorTema'
 import type { AudioPreparado, ParrafoOracion, Tema } from '../../../preload'
+import './Publicador.css'
+import './Audios.css'
 import { Encabezado } from '../components/Encabezado'
 
 const { Dragger } = Upload
@@ -155,13 +157,15 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
   const enviando = ocupado === ENVIANDO
   const textoIncompleto = incluirTexto && parrafos.length > 0 && parrafos.some(p => !p.texto.trim())
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto' }}>
+    <ConfigProvider theme={{ token: { colorPrimary: '#1c6e58', borderRadius: 8 } }}>
+    <div className="audio-formulario" style={{ maxWidth: 820, margin: '0 auto' }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Encabezado titulo="Publicar audio" descripcion="Comparte una oración con tu propia voz. Arrastra la grabación, escúchala y publícala." />
         {error && <Alert type="error" showIcon message="No se pudo completar" description={error} />}
         {url && <Alert type="success" showIcon message="Oración enviada" description={<>El sitio puede tardar unos minutos en actualizarse. <Button type="link" onClick={() => window.api.abrirEnlace(url)}>Abrir oración</Button></>} />}
-        <Card>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <div className="publicar-formulario">
+          <section className="publicar-panel audio-campos">
+            <div className="publicar-paso"><span>1</span><div><Typography.Title level={4}>Grabación de la oración</Typography.Title><Typography.Text type="secondary">Selecciona tu audio y escúchalo antes de publicar.</Typography.Text></div></div>
             {!audio && !preparando && <Dragger accept={ACEPTA} multiple={false} showUploadList={false} beforeUpload={soltar} style={{ padding: '12px 0' }}>
               <p className="ant-upload-drag-icon"><AudioOutlined /></p>
               <p className="ant-upload-text">Arrastra aquí tu nota de voz</p>
@@ -175,10 +179,7 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
                   <Typography.Text strong style={{ display: 'block' }}>{audio.nombre}</Typography.Text>
                   <Typography.Text type="secondary">{duracion(audio.duracion)} · Archivo original: {mb(audio.bytesOriginal)} · Listo para publicar: {mb(audio.bytes)}</Typography.Text>
                 </div>
-                <Space>
-                  <Button danger icon={<CloseOutlined />} disabled={enviando} onClick={cancelar}>Cancelar</Button>
-                  <Button type="primary" size="large" icon={<UploadOutlined />} loading={enviando} disabled={!titulo.trim() || !!ocupado || generandoImagen || textoIncompleto} onClick={publicar}>Publicar oración</Button>
-                </Space>
+
               </div>
               <audio ref={player} onTimeUpdate={e => setTiempo(e.currentTarget.currentTime)} onSeeked={e => setTiempo(e.currentTarget.currentTime)} controls preload="metadata" src={audio.preview} style={{ width: '100%' }} aria-label="Escuchar la oración antes de publicar" />
               {ocupado === TRANSCRIBIENDO && <>
@@ -186,21 +187,29 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
                 <Progress percent={progreso} status="active" />
               </>}
               {sinTranscriptor && <Alert type="info" showIcon message="Se publicará sólo el audio" description={<>Para publicar también el texto, hace falta el transcriptor. <Button type="link" onClick={abrirConfiguracion}>Configurar transcriptor</Button></>} />}
+            </>}
+          </section>
+          {audio && <>
               {ocupado !== TRANSCRIBIENDO && <>
+              <section className="publicar-panel audio-campos">
+                <div className="publicar-paso"><span>2</span><div><Typography.Title level={4}>Datos de la oración</Typography.Title><Typography.Text type="secondary">Revisa el título, la descripción y el tema.</Typography.Text></div></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-                <label htmlFor="audio-titulo">Título de la oración</label>
+                <label className="publicar-etiqueta" htmlFor="audio-titulo">Título de la oración</label>
                 {!sugiriendo && sugerenciaFallo && <Typography.Text type="secondary">No hubo sugerencia esta vez; escríbelos tú.</Typography.Text>}
                 {!!parrafos.length && <Button type="link" icon={<IconoIA style={{ fontSize: 22 }} />} loading={sugiriendo} disabled={enviando} role={sugiriendo ? 'status' : undefined} onClick={() => void sugerir(audio.id, true)} style={{ paddingInline: 4 }}>
                   {sugiriendo ? 'Proponiendo título y descripción…' : sugerenciaFallo ? 'Intentar de nuevo' : 'Proponer otro título'}
                 </Button>}
               </div>
               <Input id="audio-titulo" size="large" value={titulo} maxLength={120} disabled={enviando || sugiriendo} placeholder="Una oración por nuestra familia" onChange={e => actualizar({ titulo: e.target.value })} />
-              <label htmlFor="audio-descripcion">Descripción (opcional)</label>
+              <label className="publicar-etiqueta" htmlFor="audio-descripcion">Descripción (opcional)</label>
               <Input.TextArea id="audio-descripcion" value={descripcion} maxLength={2000} autoSize={{ minRows: 2, maxRows: 6 }} disabled={enviando || sugiriendo} onChange={e => actualizar({ descripcion: e.target.value })} />
-              <label htmlFor="audio-tema">Tema (opcional)</label>
+              <label className="publicar-etiqueta" htmlFor="audio-tema">Tema (opcional)</label>
               <SelectorTema id="audio-tema" temas={temas} value={tema} onChange={nombre => actualizar({ tema: nombre })} disabled={enviando} />
+              </section>
+              <section className="publicar-panel audio-campos">
+                <div className="publicar-paso"><span>3</span><div><Typography.Title level={4}>Portada y texto</Typography.Title><Typography.Text type="secondary">Elige cómo acompañar tu grabación en el sitio.</Typography.Text></div></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-                <label>Imagen de portada</label>
+                <span className="publicar-etiqueta">Imagen de portada</span>
                 {imagenFallo === 'sin-clave' && <Typography.Text type="secondary">Sin portada: falta la clave de imágenes. Contacta a Lucas.</Typography.Text>}
                 {imagenFallo === 'error' && <Typography.Text type="secondary">No se pudo crear la portada esta vez.</Typography.Text>}
                 {imagenFallo !== 'sin-clave' && <Space>
@@ -230,12 +239,17 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
                   </>}
                 </Space>
               }]} />}
+              </section>
               </>}
-              <Typography.Text type="secondary">Al publicar, cualquier persona podrá escuchar y descargar esta oración.</Typography.Text>
+              <div className="publicar-resumen">
+                <div><Typography.Text strong>Una oración en el sitio</Typography.Text><br /><Typography.Text type="secondary">{incluirTexto && parrafos.length ? 'Audio con texto para acompañar la oración' : 'Audio de la oración'}</Typography.Text></div>
+                <Space wrap><Button size="large" disabled={enviando} onClick={cancelar}>Cancelar</Button><Button type="primary" size="large" icon={<UploadOutlined />} loading={enviando} disabled={!titulo.trim() || !!ocupado || generandoImagen || textoIncompleto} onClick={publicar}>Publicar oración</Button></Space>
+              </div>
+              <Typography.Paragraph type="secondary" className="publicar-ayuda">Al publicar, cualquier persona podrá escuchar y descargar esta oración.</Typography.Paragraph>
             </>}
-          </Space>
-        </Card>
+        </div>
       </Space>
     </div>
+    </ConfigProvider>
   )
 }

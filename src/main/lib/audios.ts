@@ -257,3 +257,29 @@ export async function publicarAudio(repo: string, id: string, titulo: string, de
     return { url: `https://drluisangeldiaz.com/oraciones/${slug}` }
   })
 }
+
+export async function borrarAudio(repo: string, id: string): Promise<void> {
+  return exclusivo(async () => {
+    if (typeof id !== 'string' || !/^[a-zA-Z0-9-]+$/.test(id)) throw new Error('Identificador de audio no válido.')
+    if ((await git(['status', '--porcelain'], repo)).trim()) throw new Error('Hay cambios pendientes en el sitio. Termínalos antes de eliminar un audio.')
+    await sincronizar(repo)
+    const catalogo = await leerCatalogo(repo)
+    const item = catalogo.find(o => o.id === id)
+    if (!item) throw new Error('Esta oración ya no está en el catálogo. Actualiza la lista.')
+    const archivos = [RUTA_CATALOGO, `public/audio/${id}.mp3`, ...(item.imagen ? [`public/img/oraciones/${id}.jpg`] : []), ...(item.transcripcion ? [`content/oraciones/${id}.json`] : [])]
+    const previo = await git(['rev-parse', 'HEAD'], repo)
+    try {
+      await git(['rm', '--', ...archivos.slice(1)], repo)
+      await writeFile(path.join(repo, RUTA_CATALOGO), JSON.stringify({oraciones: catalogo.filter(o => o.id !== id)}, null, 2) + '\n')
+      await confirmar(repo, `eliminar oración: ${item.titulo}`, [RUTA_CATALOGO])
+    } catch (error) {
+      if ((await git(['rev-parse', 'HEAD'], repo)) === previo) {
+        await git(['reset', '--', ...archivos], repo)
+        await git(['checkout', '--', ...archivos], repo)
+      } else {
+        throw new Error('La eliminación está guardada localmente, pero no se pudo enviar al sitio. Revisa la conexión y contacta a Lucas para sincronizarla.')
+      }
+      throw error
+    }
+  })
+}

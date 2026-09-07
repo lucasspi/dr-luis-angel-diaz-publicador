@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Empty, Space, Table, Tag, Tooltip, Typography } from 'antd'
-import { EditOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Alert, Button, Empty, Popconfirm, message, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { DeleteOutlined, EditOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons'
 import { DialogoAudio } from '../components/DialogoAudio'
 import type { Oracion, Tema } from '../../../preload'
 import { Encabezado } from '../components/Encabezado'
@@ -15,6 +15,12 @@ export default function ListaAudios(): JSX.Element {
   const [oraciones, setOraciones] = useState<Oracion[]>([])
   const [temas, setTemas] = useState<Tema[]>([])
   const [editando, setEditando] = useState<Oracion | null>(null)
+  const [eliminando, setEliminando] = useState('')
+  async function eliminar(o: Oracion): Promise<void> {
+    setEliminando(o.id); setError('')
+    try { await window.api.borrarAudio(o.id); await cargar(); void message.success('Oración eliminada. El sitio se actualizará en unos minutos.') }
+    catch (e) { setError(mensaje(e)) } finally { setEliminando('') }
+  }
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
   const cargar = async (): Promise<void> => {
@@ -54,9 +60,12 @@ export default function ListaAudios(): JSX.Element {
           { title: 'Tamaño', dataIndex: 'bytes', width: 100, render: mb },
           { title: 'Texto', dataIndex: 'transcripcion', width: 80, render: (t?: string) => t ? 'Sí' : 'No' },
           { title: 'Portada', dataIndex: 'imagen', width: 90, render: (t?: string) => t ? 'Sí' : 'No' },
-          { key: 'acciones', width: 90, align: 'right', render: (_, o) => <Space size={0}>
+          { key: 'acciones', width: 180, align: 'right', render: (_, o) => <Space size={0}>
             <Tooltip title="Editar título, descripción y tema"><Button type="text" size="small" icon={<EditOutlined />} onClick={() => setEditando(o)} /></Tooltip>
             <Tooltip title="Ver en el sitio"><Button type="text" size="small" icon={<ExportOutlined />} onClick={() => window.api.abrirEnlace(`https://drluisangeldiaz.com/oraciones/${o.slug}`)} /></Tooltip>
+            <Popconfirm title="¿Eliminar esta oración?" description={`«${o.titulo}» se quitará del sitio junto con su audio, portada y texto.`} okText="Sí, eliminar" cancelText="Conservar" okButtonProps={{ danger: true }} onConfirm={() => eliminar(o)}>
+              <Button danger type="text" size="small" icon={<DeleteOutlined />} loading={eliminando === o.id} disabled={!!eliminando && eliminando !== o.id}>Eliminar</Button>
+            </Popconfirm>
           </Space> }
         ]}
       />

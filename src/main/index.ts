@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { prepararAudio, publicarAudio, listarAudios, transcribirAudio, cancelarTranscripcion, audioOcupado, textoTranscrito, generarImagenAudio, quitarImagenAudio, editarAudio } from './lib/audios'
+import { prepararAudio, publicarAudio, listarAudios, transcribirAudio, cancelarTranscripcion, audioOcupado, textoTranscrito, generarImagenAudio, quitarImagenAudio, editarAudio, borrarAudio } from './lib/audios'
 import { titularOracionConCodex } from './lib/codexFormat'
 import { GestorModelo } from './lib/transcripcion/modelo'
 import { encontrarWhisper } from './lib/transcripcion/motor'
@@ -11,6 +11,7 @@ import { listarPublicaciones } from './lib/publicaciones'
 import { leerTemas, renombrarTema, RUTA_TEMAS } from './lib/temas'
 import { borrarPublicacion } from './lib/borrar'
 import { cambiarTitulo } from './lib/editarPost'
+import { listarSuscriptores } from './lib/suscriptores'
 import { leerVisitas } from './lib/analitica'
 import { confirmar } from './lib/publish'
 import { sincronizar } from './lib/git'
@@ -99,6 +100,8 @@ app.whenReady().then(() => {
     ])
   )
 
+  ipcMain.handle('listar-suscriptores', async () => listarSuscriptores((await cargarConfig())?.newsletter))
+
   ipcMain.handle('obtener-config', async () => {
     const config = await cargarConfig()
     return { configurado: config !== null, configPath: getConfigPath() }
@@ -131,6 +134,11 @@ app.whenReady().then(() => {
     return generarImagenAudio(id, prompt, config.falApiKey).catch((e: unknown) => { console.error('[generar-imagen-audio]', e); throw e })
   })
   ipcMain.handle('quitar-imagen-audio', (_event, id: string) => quitarImagenAudio(id))
+  ipcMain.handle('borrar-audio', async (_event, id: string) => {
+    const config = await cargarConfig()
+    if (!config) throw new Error('Falta configurar la aplicación.')
+    return borrarAudio(config.repoPath, id)
+  })
   ipcMain.handle('editar-audio', async (_event, id: string, cambios: { titulo: string; descripcion: string; tema: string }) => {
     const config = await cargarConfig()
     if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
@@ -161,7 +169,7 @@ app.whenReady().then(() => {
     return procesarDocumento(filePath, categoria ?? '', config, mainWindow)
   })
 
-  ipcMain.handle('procesar-documentos', async (_event, filePaths: string[], categoria: string) => {
+  ipcMain.handle('procesar-documentos', async (_event, filePaths: string[], categoria: string, comunicarArchivos: string[] = []) => {
     if (!mainWindow) throw new Error('Ventana no disponible.')
     const config = await cargarConfig()
     if (!config) {
@@ -169,7 +177,7 @@ app.whenReady().then(() => {
     }
     return procesarDocumentosEnLote(filePaths, categoria ?? '', config, (evento) => {
       mainWindow?.webContents.send('progreso-lote', evento)
-    })
+    }, comunicarArchivos)
   })
 
   ipcMain.handle('listar-categorias', async () => {

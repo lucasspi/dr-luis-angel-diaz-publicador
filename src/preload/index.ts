@@ -35,6 +35,18 @@ export interface AudioPreparado {
   preview: string
 }
 
+export interface Suscriptor {
+  nombre: string
+  email: string
+  fecha: string
+  estado: 'pendiente' | 'activo' | 'baja' | 'retirado'
+  actualizado: string
+}
+export interface ListaSuscriptores {
+  suscriptores: Suscriptor[]
+  servicio: { activo: boolean; inicializado: boolean; ultimaRevision: string; error: string; limite: number; pendientes: number }
+}
+
 export interface ConfigInfo {
   configurado: boolean
   configPath: string
@@ -107,6 +119,7 @@ export type EstadoActualizacion =
   | { fase: 'error'; mensaje: string }
 
 const api = {
+  listarSuscriptores: (): Promise<ListaSuscriptores | null> => ipcRenderer.invoke('listar-suscriptores'),
   estadoTranscriptor: (): Promise<ConfigTranscripcion> => ipcRenderer.invoke('transcriptor-estado'),
   descargarTranscriptor: (): Promise<void> => ipcRenderer.invoke('transcriptor-descargar'),
   cancelarDescargaTranscriptor: (): Promise<void> => ipcRenderer.invoke('transcriptor-cancelar-descarga'),
@@ -129,6 +142,7 @@ const api = {
   generarImagenAudio: (id: string, prompt: string): Promise<{ preview: string }> => ipcRenderer.invoke('generar-imagen-audio', id, prompt),
   quitarImagenAudio: (id: string): Promise<void> => ipcRenderer.invoke('quitar-imagen-audio', id),
   /** Título, descripción y tema de una oración publicada. La URL no se mueve. Commitea y sube. */
+  borrarAudio: (id: string): Promise<void> => ipcRenderer.invoke('borrar-audio', id),
   editarAudio: (id: string, cambios: { titulo: string; descripcion: string; tema: string }): Promise<Oracion> => ipcRenderer.invoke('editar-audio', id, cambios),
   obtenerConfig: (): Promise<ConfigInfo> => ipcRenderer.invoke('obtener-config'),
   elegirDocumento: (): Promise<string | null> => ipcRenderer.invoke('elegir-documento'),
@@ -147,8 +161,8 @@ const api = {
     ipcRenderer.invoke('cambiar-titulo', archivo, tituloNuevo),
   procesarDocumento: (filePath: string, categoria: string): Promise<ResultadoProceso> =>
     ipcRenderer.invoke('procesar-documento', filePath, categoria),
-  procesarDocumentos: (filePaths: string[], categoria: string): Promise<ResultadoDocumentoLote[]> =>
-    ipcRenderer.invoke('procesar-documentos', filePaths, categoria),
+  procesarDocumentos: (filePaths: string[], categoria: string, comunicarArchivos: string[] = []): Promise<ResultadoDocumentoLote[]> =>
+    ipcRenderer.invoke('procesar-documentos', filePaths, categoria, comunicarArchivos),
   abrirEnlace: (url: string): Promise<void> => ipcRenderer.invoke('abrir-enlace', url),
   onProgreso: (callback: (mensaje: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, mensaje: string): void => callback(mensaje)

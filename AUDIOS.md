@@ -91,3 +91,7 @@ La integración usa sólo repositorios temporales y un remoto Git local: prueba
 compresión real, archivos inválidos, validación, cambios pendientes, fallo del
 push, reintento sin duplicación y rechazo de catálogo con audio ausente.
 El test del catálogo requiere este checkout hermano `../site`.
+
+## Eliminar una oración
+
+En la lista Audios, pulsa **Eliminar** y confirma el título. Se retiran la entrada del catálogo, el MP3, la portada y la transcripción de esa oración. La actualización del sitio tarda unos minutos. Si el repositorio tiene cambios pendientes, la operación se detiene para protegerlos.

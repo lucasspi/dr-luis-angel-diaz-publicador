@@ -1,5 +1,6 @@
 import type { AppConfig } from './config'
 import { sincronizar } from './git'
+import { enviarCambios } from './publish'
 import { leerCatalogo } from './reflexiones'
 import {
   prepararDocumento,
@@ -40,12 +41,18 @@ export async function procesarDocumentosEnLote(
   filePaths: string[],
   categoria: string,
   config: AppConfig,
-  emitir: (evento: EventoProgresoLote) => void
+  emitir: (evento: EventoProgresoLote) => void,
+  comunicarArchivos: string[] = []
 ): Promise<ResultadoDocumentoLote[]> {
   if (filePaths.length === 0) return []
   if (filePaths.length > 10) {
     throw new Error('Puedes publicar un máximo de 10 documentos por vez.')
   }
+
+  if (!Array.isArray(comunicarArchivos) || comunicarArchivos.some(p => typeof p !== 'string' || !filePaths.includes(p))) {
+    throw new Error('La selección de avisos no corresponde a los documentos.')
+  }
+  const avisos = new Set(comunicarArchivos)
 
   await sincronizar(config.repoPath)
 
@@ -130,11 +137,13 @@ export async function procesarDocumentosEnLote(
             mensaje,
             porcentaje: porcentajePara(mensaje)
           })
-        }
+        },
+        avisos.has(filePath),
+        true
       )
       const resultado: ResultadoDocumentoLote = { filePath, status: 'exito', url }
       resultados.push(resultado)
-      emitir({ tipo: 'exito', filePath, url })
+
     } catch (err) {
       const mensaje = mensajeError(err)
       resultados.push({ filePath, status: 'erro', mensaje })
@@ -142,5 +151,18 @@ export async function procesarDocumentosEnLote(
     }
   }
 
+  if (resultados.some(r => r.status === 'exito')) {
+    try {
+      await enviarCambios(config.repoPath)
+      resultados.forEach(r => { if (r.status === 'exito') emitir({ tipo: 'exito', filePath: r.filePath, url: r.url }) })
+    } catch (err) {
+      const mensaje = mensajeError(err)
+      return resultados.map(r => {
+        if (r.status === 'erro') return r
+        emitir({ tipo: 'erro', filePath: r.filePath, mensaje })
+        return { filePath: r.filePath, status: 'erro' as const, mensaje }
+      })
+    }
+  }
   return resultados
 }

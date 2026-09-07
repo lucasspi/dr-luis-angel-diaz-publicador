@@ -10,11 +10,16 @@ import { git } from './git'
 export async function confirmar(
   repoPath: string,
   mensaje: string,
-  archivos: string[]
+  archivos: string[],
+  adiarEnvio = false
 ): Promise<void> {
   if (archivos.length > 0) await git(['add', ...archivos], repoPath)
   await git(['commit', '-m', mensaje], repoPath)
 
+  if (!adiarEnvio) await enviarCambios(repoPath)
+}
+
+export async function enviarCambios(repoPath: string): Promise<void> {
   try {
     await git(['push', 'origin', 'master'], repoPath)
   } catch {
@@ -26,7 +31,8 @@ export async function confirmar(
 export async function publicar(
   repoPath: string,
   titulo: string,
-  archivos: string[]
+  archivos: string[],
+  adiarEnvio = false
 ): Promise<void> {
-  await confirmar(repoPath, `reflexión: ${titulo}`, archivos)
+  await confirmar(repoPath, `reflexión: ${titulo}`, archivos, adiarEnvio)
 }

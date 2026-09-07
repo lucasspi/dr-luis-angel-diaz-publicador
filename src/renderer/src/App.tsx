@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'r
 import { App as AntApp, ConfigProvider, Tabs, Typography, Button, Badge } from 'antd'
 import {
   SettingOutlined,
+  MailOutlined,
   AudioOutlined,
   BarChartOutlined,
   CloudUploadOutlined,
@@ -19,6 +20,7 @@ import Publicador from './pages/Publicador'
 import Publicaciones from './pages/Publicaciones'
 import Temas from './pages/Temas'
 import Visitas from './pages/Visitas'
+import Suscriptores from './pages/Suscriptores'
 import { ProveedorPublicaciones } from './datos/publicaciones'
 
 const { Text } = Typography
@@ -40,6 +42,7 @@ const PAGINAS = [
   { ruta: '/publicaciones', etiqueta: 'Publicaciones', icono: <UnorderedListOutlined /> },
   { ruta: '/audios', etiqueta: 'Audios', icono: <SoundOutlined /> },
   { ruta: '/temas', etiqueta: 'Temas', icono: <TagsOutlined /> },
+  { ruta: '/suscriptores', etiqueta: 'Suscriptores', icono: <MailOutlined /> },
   { ruta: '/visitas', etiqueta: 'Visitas', icono: <BarChartOutlined /> }
 ]
 
@@ -108,6 +111,7 @@ function Cascara(): JSX.Element {
           <Route path="/audios" element={<ListaAudios />} />
           <Route path="/publicaciones" element={<Publicaciones />} />
           <Route path="/temas" element={<Temas />} />
+          <Route path="/suscriptores" element={<Suscriptores />} />
           <Route path="/visitas" element={<Visitas />} />
           <Route path="*" element={<Navigate to="/publicar" replace />} />
         </Routes>

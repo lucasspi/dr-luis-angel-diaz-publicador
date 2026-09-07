@@ -14,6 +14,7 @@ export interface AppConfig {
   falApiKey: string
   /** Opcional: sin esto la pestaña de Visitas explica cómo configurarla. */
   goatcounter?: GoatCounterConfig
+  newsletter?: { endpoint: string; readToken: string }
 }
 
 export function getConfigPath(): string {

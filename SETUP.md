@@ -140,3 +140,14 @@ todos modos" en Gatekeeper (ya cubierto en el paso 5), y no hay garantía
 versiones de macOS. Si en la práctica da problemas, notarizar es el
 siguiente paso — pero no lo asumí de entrada porque implica una cuenta de
 desarrollador Apple que no confirmamos que exista para este proyecto.
+
+## Suscriptores y avisos por correo
+
+La pestaña Suscriptores consulta la planilla a través de la aplicación web de
+Apps Script. Configurar `newsletter.endpoint` y `newsletter.readToken` en el
+`config.json` local (ver `config.example.json`). La clave de Resend permanece
+en las propiedades del Apps Script; nunca se incluye en el publicador.
+La lista es de solo lectura y muestra el estado de la última sincronización.
+El envío funciona cada 12 horas, incluso con el publicador cerrado.
+La instalación del servicio se documenta en el repo del sitio:
+`infra/avisos-por-correo/README-v2.md`.
