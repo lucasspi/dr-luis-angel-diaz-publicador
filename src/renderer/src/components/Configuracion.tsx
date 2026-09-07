@@ -6,6 +6,15 @@ import type { ConfigTranscripcion } from '../../../preload'
 export function Configuracion({ abierto, cerrar, actualizacion }: { abierto: boolean; cerrar: () => void; actualizacion: EstadoUpdate }): JSX.Element {
   const [estado, setEstado] = useState<ConfigTranscripcion>()
   const [error, setError] = useState('')
+  const [correoOcupado, setCorreoOcupado] = useState('')
+  const [correoMensaje, setCorreoMensaje] = useState('')
+  const [correoError, setCorreoError] = useState('')
+  async function correo(action: 'sincronizar' | 'procesar-avisos'): Promise<void> {
+    setCorreoOcupado(action); setCorreoMensaje(''); setCorreoError('')
+    try { setCorreoMensaje(await window.api.gestionarCorreo(action)) }
+    catch (e) { setCorreoError(e instanceof Error ? e.message : String(e)) }
+    finally { setCorreoOcupado('') }
+  }
   const [accion, setAccion] = useState(false)
   useEffect(() => {
     if (!abierto) return
@@ -59,6 +68,18 @@ export function Configuracion({ abierto, cerrar, actualizacion }: { abierto: boo
           <Button type="primary" loading={accion} onClick={() => ejecutar(window.api.descargarTranscriptor)}>{modelo.fase === 'error' ? 'Reintentar descarga' : 'Descargar transcriptor'}</Button>
         </>}
       </>}
+    </Space>
+    <Divider />
+    <Typography.Title level={4}>Suscriptores y avisos por correo</Typography.Title>
+    <Typography.Paragraph>Los registros se guardan primero en la planilla. Cada 12 horas se sincronizan con Resend y se revisan las novedades. Aquí puedes adelantar esa revisión.</Typography.Paragraph>
+    <Space direction="vertical" size="middle" style={{width: '100%'}}>
+      <Button loading={correoOcupado === 'sincronizar'} disabled={!!correoOcupado} onClick={() => void correo('sincronizar')}>Sincronizar suscriptores ahora</Button>
+      <Typography.Text type="secondary">Actualiza la lista en Resend. No envía correos.</Typography.Text>
+      <Popconfirm title="¿Procesar y enviar los avisos pendientes?" description="Se puede enviar un correo real a todos los suscriptores activos, con las reflexiones seleccionadas que todavía no se anunciaron. Requiere que el envío esté activado." okText="Sí, procesar y enviar" cancelText="Cancelar" onConfirm={() => correo('procesar-avisos')}>
+        <Button loading={correoOcupado === 'procesar-avisos'} disabled={!!correoOcupado}>Procesar avisos pendientes</Button>
+      </Popconfirm>
+      {correoMensaje && <Alert type="success" showIcon message={correoMensaje} />}
+      {correoError && <Alert type="error" showIcon message={correoError} />}
     </Space>
     <Divider />
     <Typography.Title level={4}>Actualizaciones</Typography.Title>

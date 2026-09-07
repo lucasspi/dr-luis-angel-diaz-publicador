@@ -25,3 +25,18 @@ export async function listarSuscriptores(config: AppConfig['newsletter']): Promi
     throw new Error('El servicio devolvió una lista no válida.')
   return { suscriptores: data.suscriptores, servicio: data.servicio }
 }
+
+export async function gestionarCorreo(config: AppConfig['newsletter'], action: string): Promise<string> {
+  if (!config?.adminToken || config.adminToken.length < 32) throw new Error('Falta configurar la clave de administración del correo. Contacta a Lucas.')
+  if (!['sincronizar', 'procesar-avisos'].includes(action)) throw new Error('Acción no disponible.')
+  const url = new URL(config.endpoint)
+  if (url.origin !== 'https://script.google.com' || !/^\/macros\/s\/[\w-]+\/exec$/.test(url.pathname) || url.search || url.hash || url.username || url.password) throw new Error('Dirección de Apps Script no válida.')
+  let response: Response
+  try {
+    response = await fetch(url, {method: 'POST', body: new URLSearchParams({action, token: config.adminToken}), signal: AbortSignal.timeout(180000)})
+  } catch { throw new Error('No se pudo confirmar el resultado. Revisa el estado del servicio antes de volver a intentarlo.') }
+  if (!response.ok) throw new Error('El servicio de correo no está disponible.')
+  const data = await response.json()
+  if (!data.ok) throw new Error(data.error || 'No se pudo completar la operación.')
+  return String(data.mensaje || 'Operación completada.')
+}

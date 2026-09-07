@@ -11,7 +11,7 @@ import { listarPublicaciones } from './lib/publicaciones'
 import { leerTemas, renombrarTema, RUTA_TEMAS } from './lib/temas'
 import { borrarPublicacion } from './lib/borrar'
 import { cambiarTitulo } from './lib/editarPost'
-import { listarSuscriptores } from './lib/suscriptores'
+import { listarSuscriptores, gestionarCorreo } from './lib/suscriptores'
 import { leerVisitas } from './lib/analitica'
 import { confirmar } from './lib/publish'
 import { sincronizar } from './lib/git'
@@ -100,6 +100,7 @@ app.whenReady().then(() => {
     ])
   )
 
+  ipcMain.handle('gestionar-correo', async (_event, action: string) => gestionarCorreo((await cargarConfig())?.newsletter, action))
   ipcMain.handle('listar-suscriptores', async () => listarSuscriptores((await cargarConfig())?.newsletter))
 
   ipcMain.handle('obtener-config', async () => {

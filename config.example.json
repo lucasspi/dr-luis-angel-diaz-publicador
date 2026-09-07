@@ -7,6 +7,7 @@
   },
   "newsletter": {
     "endpoint": "https://script.google.com/macros/s/ID-DE-IMPLEMENTACION/exec",
-    "readToken": "secreto-de-lectura-generado-en-apps-script"
+    "readToken": "secreto-de-lectura-generado-en-apps-script",
+    "adminToken": "secreto-administrativo-distinto-del-token-de-lectura"
   }
 }

@@ -119,6 +119,7 @@ export type EstadoActualizacion =
   | { fase: 'error'; mensaje: string }
 
 const api = {
+  gestionarCorreo: (action: 'sincronizar' | 'procesar-avisos'): Promise<string> => ipcRenderer.invoke('gestionar-correo', action),
   listarSuscriptores: (): Promise<ListaSuscriptores | null> => ipcRenderer.invoke('listar-suscriptores'),
   estadoTranscriptor: (): Promise<ConfigTranscripcion> => ipcRenderer.invoke('transcriptor-estado'),
   descargarTranscriptor: (): Promise<void> => ipcRenderer.invoke('transcriptor-descargar'),
