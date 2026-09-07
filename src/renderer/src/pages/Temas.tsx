@@ -288,7 +288,11 @@ export default function Temas(): JSX.Element {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <CabeceraLista recuento={`${visibles.length} tema${visibles.length === 1 ? '' : 's'}`} />
+      <CabeceraLista
+        titulo="Temas"
+        descripcion="Los temas del sitio y cuántas reflexiones tiene cada uno. Doble clic en una fila para cambiar el nombre."
+        recuento={`${visibles.length} tema${visibles.length === 1 ? '' : 's'}`}
+      />
 
       <Space wrap style={{ width: '100%' }}>
         <Input.Search

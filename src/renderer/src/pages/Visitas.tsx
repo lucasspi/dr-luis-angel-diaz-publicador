@@ -13,6 +13,7 @@ import {
   Tag,
   Typography
 } from 'antd'
+import { Encabezado } from '../components/Encabezado'
 import { ExportOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Publicacion, Visitas as DatosVisitas } from '../../../preload'
@@ -20,7 +21,7 @@ import { usePublicaciones } from '../datos/publicaciones'
 import { Portada } from '../components/Portada'
 import { fechaLegible, normalizar } from '../lib/formato'
 
-const { Paragraph, Text, Title } = Typography
+const { Paragraph, Text } = Typography
 
 const PERIODOS = [
   { label: '7 días', value: 7 },
@@ -178,22 +179,18 @@ export default function Visitas(): JSX.Element {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }} align="baseline" wrap>
-        <Title level={5} style={{ margin: 0 }}>
-          Visitas
-        </Title>
-        <Space>
-          <Segmented
-            options={PERIODOS}
-            value={dias}
-            onChange={(v) => setDias(v as number)}
-            size="small"
-          />
-          <Button icon={<ReloadOutlined />} loading={cargando} onClick={cargar} size="small">
-            Actualizar
-          </Button>
-        </Space>
-      </Space>
+      <Encabezado
+        titulo="Visitas"
+        descripcion="Cuánta gente entra al sitio y qué reflexiones lee más."
+        acciones={
+          <>
+            <Segmented options={PERIODOS} value={dias} onChange={(v) => setDias(v as number)} />
+            <Button icon={<ReloadOutlined />} loading={cargando} onClick={cargar}>
+              Actualizar
+            </Button>
+          </>
+        }
+      />
 
       <Space size="large" wrap>
         <Statistic

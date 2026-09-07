@@ -1,8 +1,10 @@
-import { Alert, Button, Space, Typography } from 'antd'
+import { Alert, Button, Typography } from 'antd'
+import type { ReactNode } from 'react'
 import { ReloadOutlined } from '@ant-design/icons'
 import { usePublicaciones } from '../datos/publicaciones'
+import { Encabezado } from './Encabezado'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 /**
  * La franja que comparten las dos tablas: cuántas filas se están viendo,
@@ -11,24 +13,23 @@ const { Text, Title } = Typography
  * El contador dice solo lo que la tabla muestra — con filtros puestos, el
  * total del sitio obliga a hacer la resta mentalmente y no aporta nada.
  */
-export function CabeceraLista({ recuento }: { recuento: string }): JSX.Element {
+export function CabeceraLista({ titulo, descripcion, recuento }: { titulo: string; descripcion?: ReactNode; recuento: string }): JSX.Element {
   const { avisoSync, descartarAviso, sincronizando, recargar } = usePublicaciones()
 
   return (
     <>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }} align="baseline" wrap>
-        <Title level={5} style={{ margin: 0 }}>
-          {recuento}
-        </Title>
-        <Button
-          icon={<ReloadOutlined />}
-          loading={sincronizando}
-          onClick={() => recargar(true)}
-          size="small"
-        >
-          Sincronizar
-        </Button>
-      </Space>
+      <Encabezado
+        titulo={titulo}
+        descripcion={descripcion}
+        acciones={
+          <>
+            <Text type="secondary">{recuento}</Text>
+            <Button icon={<ReloadOutlined />} loading={sincronizando} onClick={() => recargar(true)}>
+              Sincronizar
+            </Button>
+          </>
+        }
+      />
 
       {avisoSync && (
         <Alert

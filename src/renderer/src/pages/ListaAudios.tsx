@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, Empty, Space, Table, Tag, Typography } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import type { Oracion, Tema } from '../../../preload'
+import { Encabezado } from '../components/Encabezado'
 
 const mb = (n: number): string => `${(n / 1000000).toFixed(1)} MB`
 const duracion = (n: number): string => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`
@@ -23,17 +24,21 @@ export default function ListaAudios(): JSX.Element {
   }
   useEffect(() => { void cargar() }, [])
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <div>
-          <Typography.Title level={2}>Oraciones en audio</Typography.Title>
-          <Typography.Paragraph type="secondary">Todas las oraciones publicadas desde este equipo. Un envío reciente puede tardar unos minutos en verse en el sitio.</Typography.Paragraph>
-        </div>
-        <Button icon={<ReloadOutlined />} loading={cargando} onClick={() => void cargar()}>Actualizar</Button>
-      </Space>
-      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Encabezado
+        titulo="Audios"
+        descripcion="Las oraciones en audio publicadas en el sitio. Un envío reciente puede tardar unos minutos en verse."
+        acciones={
+          <>
+            <Typography.Text type="secondary">{`${oraciones.length} oraci${oraciones.length === 1 ? 'ón' : 'ones'}`}</Typography.Text>
+            <Button icon={<ReloadOutlined />} loading={cargando} onClick={() => void cargar()}>Actualizar</Button>
+          </>
+        }
+      />
+      {error && <Alert type="error" showIcon message={error} />}
       <Table<Oracion>
         rowKey="id"
+        size="small"
         dataSource={oraciones}
         loading={cargando}
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
@@ -48,6 +53,6 @@ export default function ListaAudios(): JSX.Element {
           { title: '', key: 'abrir', width: 100, render: (_, o) => <Button onClick={() => window.api.abrirEnlace(`https://drluisangeldiaz.com/oraciones#${o.id}`)}>Abrir</Button> }
         ]}
       />
-    </div>
+    </Space>
   )
 }

@@ -177,6 +177,8 @@ export default function Publicaciones(): JSX.Element {
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <CabeceraLista
+        titulo="Publicaciones"
+        descripcion="Las reflexiones publicadas en el sitio. Doble clic en una fila para cambiar su título."
         recuento={`${visibles.length} reflexion${visibles.length === 1 ? '' : 'es'}`}
       />
 

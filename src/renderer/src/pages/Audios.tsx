@@ -3,6 +3,7 @@ import { Alert, Button, Card, Input, Space, Typography, Checkbox, Progress, Popc
 import type { RcFile } from 'antd/es/upload'
 import { AudioOutlined, UploadOutlined, CloseOutlined, BulbOutlined } from '@ant-design/icons'
 import type { AudioPreparado, ParrafoOracion, Tema } from '../../../preload'
+import { Encabezado } from '../components/Encabezado'
 
 const { Dragger } = Upload
 const EXTENSIONES = ['m4a', 'mp3', 'wav', 'ogg', 'opus', 'aac', 'flac', 'amr', 'mp4', 'webm']
@@ -132,9 +133,8 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
   const textoIncompleto = incluirTexto && parrafos.length > 0 && parrafos.some(p => !p.texto.trim())
   return (
     <div style={{ maxWidth: 820, margin: '0 auto' }}>
-      <Typography.Title level={2}>Publicar oración en audio</Typography.Title>
-      <Typography.Paragraph type="secondary">Comparte una oración con tu propia voz. Arrastra la grabación, escúchala y publícala.</Typography.Paragraph>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Encabezado titulo="Publicar audio" descripcion="Comparte una oración con tu propia voz. Arrastra la grabación, escúchala y publícala." />
         {error && <Alert type="error" showIcon message="No se pudo completar" description={error} />}
         {url && <Alert type="success" showIcon message="Oración enviada" description={<>El sitio puede tardar unos minutos en actualizarse. <Button type="link" onClick={() => window.api.abrirEnlace(url)}>Abrir oración</Button></>} />}
         <Card>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Input, List, message, Progress, Result, Space, Spin, Table, Tag, Typography, Upload } from 'antd'
+import { Encabezado } from '../components/Encabezado'
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -385,7 +386,13 @@ export default function Publicador(): JSX.Element {
       : []
 
   return (
-    <div style={{ maxWidth: estado.fase === 'procesando' ? 960 : 560, margin: '0 auto' }}>
+    <div style={{ maxWidth: estado.fase === 'procesando' ? 960 : 820, margin: '0 auto' }}>
+      <div style={{ marginBottom: 24 }}>
+        <Encabezado
+          titulo="Publicar reflexión"
+          descripcion="Arrastra un Word o PDF, elige el tema y la reflexión se publica sola en el sitio."
+        />
+      </div>
       {estado.fase === 'cargando' && (
         <div style={{ textAlign: 'center', padding: 48 }}>
           <Spin />
