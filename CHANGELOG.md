@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.4.1
+
+- Selector de tema destacado en el formulario de audio, con campo más grande e indicación de desplegable.
+
 ## 0.4.0
 
 - Lista de suscriptores de solo lectura, conectada a Apps Script.
