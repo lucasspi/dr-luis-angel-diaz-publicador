@@ -19,11 +19,13 @@ export interface Oracion {
   audio: string
   duracion: number
   bytes: number
+  /** /img/oraciones/<id>.jpg si se generó portada. */
+  imagen?: string
   /** Nombre del archivo en content/oraciones/ con los párrafos, si hay texto. */
   transcripcion?: string
   parrafos?: ParrafoOracion[]
 }
-export interface SugerenciaOracion { titulo: string; descripcion: string }
+export interface SugerenciaOracion { titulo: string; descripcion: string; image_prompt: string }
 export interface AudioPreparado {
   id: string
   nombre: string
@@ -123,6 +125,9 @@ const api = {
     ipcRenderer.invoke('publicar-audio', id, titulo, descripcion, tema, textos),
   /** Título y descripción propuestos por Codex a partir de la transcripción. Falla en silencio: el fallback es escribirlos a mano. */
   sugerirTituloAudio: (id: string, textos: string[]): Promise<SugerenciaOracion> => ipcRenderer.invoke('sugerir-titulo-audio', id, textos),
+  /** Portada 16:9 (fal.ai). Devuelve un data URL para previsualizar; la imagen entra en la publicación salvo que se quite. */
+  generarImagenAudio: (id: string, prompt: string): Promise<{ preview: string }> => ipcRenderer.invoke('generar-imagen-audio', id, prompt),
+  quitarImagenAudio: (id: string): Promise<void> => ipcRenderer.invoke('quitar-imagen-audio', id),
   obtenerConfig: (): Promise<ConfigInfo> => ipcRenderer.invoke('obtener-config'),
   elegirDocumento: (): Promise<string | null> => ipcRenderer.invoke('elegir-documento'),
   listarCategorias: (): Promise<string[]> => ipcRenderer.invoke('listar-categorias'),

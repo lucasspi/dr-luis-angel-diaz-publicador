@@ -49,8 +49,9 @@ export default function ListaAudios(): JSX.Element {
           { title: 'Fecha', dataIndex: 'fecha', width: 120, render: (f: string) => new Date(f).toLocaleDateString('es'), sorter: (a, b) => a.fecha.localeCompare(b.fecha), defaultSortOrder: 'descend' },
           { title: 'Duración', dataIndex: 'duracion', width: 100, render: duracion },
           { title: 'Tamaño', dataIndex: 'bytes', width: 100, render: mb },
-          { title: 'Texto', dataIndex: 'transcripcion', width: 90, render: (t?: string) => t ? 'Sí' : 'No' },
-          { title: '', key: 'abrir', width: 100, render: (_, o) => <Button onClick={() => window.api.abrirEnlace(`https://drluisangeldiaz.com/oraciones#${o.id}`)}>Abrir</Button> }
+          { title: 'Texto', dataIndex: 'transcripcion', width: 80, render: (t?: string) => t ? 'Sí' : 'No' },
+          { title: 'Portada', dataIndex: 'imagen', width: 90, render: (t?: string) => t ? 'Sí' : 'No' },
+          { title: '', key: 'abrir', width: 100, render: (_, o) => <Button onClick={() => window.api.abrirEnlace(`https://drluisangeldiaz.com/oraciones/${o.slug}`)}>Abrir</Button> }
         ]}
       />
     </Space>

@@ -23,7 +23,9 @@ let estado: {
   tema: string; temaNuevo: string
   /** El título que puso la app (nombre del archivo o sugerencia). Si el usuario lo cambió, no se pisa. */
   tituloAuto: string; sugiriendo: boolean; sugerenciaFallo: boolean
-} = { titulo: '', descripcion: '', ocupado: '', error: '', url: '', parrafos: [], incluirTexto: true, progreso: 0, sinTranscriptor: false, tema: '', temaNuevo: '', tituloAuto: '', sugiriendo: false, sugerenciaFallo: false }
+  /** Portada: data URL para previsualizar; el archivo vive en el borrador del proceso principal. */
+  imagen: string; imagenPrompt: string; generandoImagen: boolean; imagenFallo: '' | 'sin-clave' | 'error'
+} = { titulo: '', descripcion: '', ocupado: '', error: '', url: '', parrafos: [], incluirTexto: true, progreso: 0, sinTranscriptor: false, tema: '', temaNuevo: '', tituloAuto: '', sugiriendo: false, sugerenciaFallo: false, imagen: '', imagenPrompt: '', generandoImagen: false, imagenFallo: '' }
 const observadores = new Set<() => void>()
 function actualizar(cambio: Partial<typeof estado>): void {
   estado = { ...estado, ...cambio }
@@ -43,7 +45,7 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
     const off = window.api.onProgresoTranscripcion(progreso => actualizar({ progreso }))
     return () => { observadores.delete(refrescar); off() }
   }, [])
-  const { audio, titulo, descripcion, ocupado, error, url, parrafos, incluirTexto, progreso, sinTranscriptor, tema, temaNuevo, sugiriendo, sugerenciaFallo } = estado
+  const { audio, titulo, descripcion, ocupado, error, url, parrafos, incluirTexto, progreso, sinTranscriptor, tema, temaNuevo, sugiriendo, sugerenciaFallo, imagen, imagenPrompt, generandoImagen, imagenFallo } = estado
 
   // Título y descripción propuestos por Codex a partir del texto. Si Codex no
   // responde (límite de uso, sin sesión), no pasa nada: se escriben a mano.
@@ -56,11 +58,30 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
       const tituloIntacto = estado.titulo === estado.tituloAuto
       actualizar({
         ...(forzar || tituloIntacto ? { titulo: s.titulo, tituloAuto: s.titulo } : {}),
-        ...(forzar || !estado.descripcion.trim() ? { descripcion: s.descripcion } : {})
+        ...(forzar || !estado.descripcion.trim() ? { descripcion: s.descripcion } : {}),
+        imagenPrompt: s.image_prompt || estado.imagenPrompt
       })
     } catch {
       if (estado.audio?.id === id) actualizar({ sugerenciaFallo: true })
     } finally { if (estado.audio?.id === id) actualizar({ sugiriendo: false }) }
+    // El paso siguiente del proceso: la portada. Sólo la primera vez; después va por su botón.
+    if (!forzar && estado.audio?.id === id && !estado.imagen && !estado.generandoImagen) await generarImagen(id)
+  }
+  // Portada con fal.ai. Sin clave configurada no es un error: se publica sin imagen.
+  // El prompt viene de Codex; si Codex no respondió, se arma uno con el título.
+  async function generarImagen(id: string, prompt?: string): Promise<void> {
+    const texto = (prompt ?? estado.imagenPrompt).trim() || `Serene 16:9 image for a spoken prayer in Spanish titled "${estado.titulo}". Soft warm light, hope, nature or a quiet interior, no recognizable faces, no text.`
+    actualizar({ generandoImagen: true, imagenFallo: '', imagenPrompt: texto })
+    try {
+      const { preview } = await window.api.generarImagenAudio(id, texto)
+      if (estado.audio?.id === id) actualizar({ imagen: preview })
+    } catch (e) {
+      if (estado.audio?.id === id) actualizar({ imagen: '', imagenFallo: /falApiKey/.test(mensaje(e)) ? 'sin-clave' : 'error' })
+    } finally { if (estado.audio?.id === id) actualizar({ generandoImagen: false }) }
+  }
+  async function quitarImagen(id: string): Promise<void> {
+    await window.api.quitarImagenAudio(id).catch(() => undefined)
+    actualizar({ imagen: '', imagenFallo: '' })
   }
   // La transcripción arranca sola tras preparar el audio. Si el transcriptor no está
   // listo no bloquea nada: se publica sin texto y se ofrece configurarlo.
@@ -112,14 +133,14 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
   function cancelar(): void {
     if (estado.ocupado === TRANSCRIBIENDO) window.api.cancelarTranscripcion().catch(() => undefined)
     player.current?.pause()
-    actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', parrafos: [], incluirTexto: true, error: '', url: '', ocupado: '', progreso: 0, sinTranscriptor: false, tema: '', temaNuevo: '', sugiriendo: false, sugerenciaFallo: false })
+    actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', parrafos: [], incluirTexto: true, error: '', url: '', ocupado: '', progreso: 0, sinTranscriptor: false, tema: '', temaNuevo: '', sugiriendo: false, sugerenciaFallo: false, imagen: '', imagenPrompt: '', generandoImagen: false, imagenFallo: '' })
   }
   async function publicar(): Promise<void> {
     if (!audio) return
     actualizar({ ocupado: ENVIANDO, error: '', url: '' })
     try {
       const resultado = await window.api.publicarAudio(audio.id, titulo, descripcion, temaNuevo.trim() || tema, incluirTexto && parrafos.length ? parrafos.map(p => p.texto) : undefined)
-      actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', url: resultado.url, parrafos: [], sinTranscriptor: false, tema: '', temaNuevo: '', sugerenciaFallo: false })
+      actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', url: resultado.url, parrafos: [], sinTranscriptor: false, tema: '', temaNuevo: '', sugerenciaFallo: false, imagen: '', imagenPrompt: '', imagenFallo: '' })
       cargarTemas()
     } catch (e) { actualizar({ error: mensaje(e) }) }
     finally { actualizar({ ocupado: '' }) }
@@ -155,7 +176,7 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
                 </div>
                 <Space>
                   <Button danger icon={<CloseOutlined />} disabled={enviando} onClick={cancelar}>Cancelar</Button>
-                  <Button type="primary" size="large" icon={<UploadOutlined />} loading={enviando} disabled={!titulo.trim() || !!ocupado || textoIncompleto} onClick={publicar}>Publicar oración</Button>
+                  <Button type="primary" size="large" icon={<UploadOutlined />} loading={enviando} disabled={!titulo.trim() || !!ocupado || generandoImagen || textoIncompleto} onClick={publicar}>Publicar oración</Button>
                 </Space>
               </div>
               <audio ref={player} onTimeUpdate={e => setTiempo(e.currentTarget.currentTime)} onSeeked={e => setTiempo(e.currentTarget.currentTime)} controls preload="metadata" src={audio.preview} style={{ width: '100%' }} aria-label="Escuchar la oración antes de publicar" />
@@ -180,6 +201,19 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
                 {temas.map(t => <Tag.CheckableTag key={t.id} checked={!temaNuevo.trim() && tema === t.nombre} onChange={() => actualizar({ tema: tema === t.nombre ? '' : t.nombre, temaNuevo: '' })} style={{ fontSize: 14, padding: '4px 12px', border: '1px solid #d9d9d9' }}>{t.nombre}</Tag.CheckableTag>)}
               </Space>}
               <Input id="audio-tema" placeholder={temas.length ? 'O escribe un tema nuevo…' : 'Ej.: Familia, Oración, Sanidad…'} value={temaNuevo} maxLength={120} allowClear disabled={enviando} onChange={e => actualizar({ temaNuevo: e.target.value })} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <label>Imagen de portada</label>
+                {imagenFallo === 'sin-clave' && <Typography.Text type="secondary">Sin portada: falta la clave de imágenes. Contacta a Lucas.</Typography.Text>}
+                {imagenFallo === 'error' && <Typography.Text type="secondary">No se pudo crear la portada esta vez.</Typography.Text>}
+                {imagenFallo !== 'sin-clave' && <Space>
+                  <Button type="link" size="small" icon={<IconoIA style={{ fontSize: 22 }} />} loading={generandoImagen} disabled={enviando || sugiriendo} onClick={() => void generarImagen(audio.id, imagenPrompt)} style={{ paddingInline: 4 }}>
+                    {generandoImagen ? 'Creando la portada…' : imagen ? 'Crear otra portada' : imagenFallo ? 'Intentar de nuevo' : 'Crear portada'}
+                  </Button>
+                  {imagen && !generandoImagen && <Button type="link" size="small" disabled={enviando} onClick={() => void quitarImagen(audio.id)}>Publicar sin portada</Button>}
+                </Space>}
+              </div>
+              {imagen && <img src={imagen} alt="Portada propuesta" style={{ width: '100%', maxWidth: 480, aspectRatio: '16 / 9', objectFit: 'cover', borderRadius: 8, border: '1px solid #d9d9d9', opacity: generandoImagen ? 0.5 : 1 }} />}
+              {!imagen && !generandoImagen && !imagenFallo && <Typography.Text type="secondary">Se crea sola cuando el título está listo. Si no aparece, pulsa "Crear portada".</Typography.Text>}
               {!!parrafos.length && <Collapse ghost items={[{
                 key: 'texto',
                 label: <Space><Typography.Text strong>Texto de la oración</Typography.Text><Typography.Text type="secondary">{incluirTexto ? `${parrafos.length} párrafo${parrafos.length === 1 ? '' : 's'} · se publica con el audio` : 'no se publica'}</Typography.Text></Space>,

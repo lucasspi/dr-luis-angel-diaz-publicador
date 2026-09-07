@@ -11,12 +11,13 @@ import { parrafosWhisper, revisarParrafos } from './transcripcion/segmentos'
 import { git, sincronizar } from './git'
 import { asegurarTema, RUTA_TEMAS } from './temas'
 import { slugificarCategoria } from './slug'
+import { generarImagen } from './imageGen'
 
 const ejecutar = promisify(execFile)
 const MAX_ENTRADA = 50 * 1024 * 1024
 const MAX_SALIDA = 20 * 1024 * 1024
 import type { AudioPreparado, Oracion, ParrafoOracion } from '../../preload'
-interface Borrador { info: AudioPreparado; carpeta: string; archivo: string; original: string; parrafos?: ParrafoOracion[]; publicacion?: Oracion }
+interface Borrador { info: AudioPreparado; carpeta: string; archivo: string; original: string; parrafos?: ParrafoOracion[]; imagen?: string; publicacion?: Oracion }
 let borrador: Borrador | undefined
 let ocupado = false
 let transcripcion: AbortController | undefined
@@ -133,6 +134,24 @@ export function textoTranscrito(id: string): string {
   return (borrador.parrafos ?? []).map(p => p.texto).join('\n\n')
 }
 
+// Portada 16:9 con fal.ai, como la de las reflexiones. Queda en el borrador hasta publicar.
+export async function generarImagenAudio(id: string, prompt: string, falApiKey: string): Promise<{ preview: string }> {
+  return exclusivo(async () => {
+    if (!borrador || borrador.info.id !== id) throw new Error('Vuelve a seleccionar y preparar el audio.')
+    if (!falApiKey) throw new Error('Falta la clave de imágenes (falApiKey) en la configuración.')
+    if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Falta la descripción de la imagen.')
+    const destino = path.join(borrador.carpeta, 'portada.jpg')
+    await generarImagen(prompt.trim(), falApiKey, destino)
+    borrador.imagen = destino
+    return { preview: `data:image/jpeg;base64,${(await readFile(destino)).toString('base64')}` }
+  })
+}
+
+export function quitarImagenAudio(id: string): void {
+  if (!borrador || borrador.info.id !== id) return
+  borrador.imagen = undefined
+}
+
 export async function publicarAudio(repo: string, id: string, titulo: string, descripcion: string, tema: string, textos?: string[]): Promise<{ url: string }> {
   return exclusivo(async () => {
     if (!borrador || borrador.info.id !== id) throw new Error('Vuelve a seleccionar y preparar el audio.')
@@ -160,12 +179,17 @@ export async function publicarAudio(repo: string, id: string, titulo: string, de
       const teniaTemas = await stat(path.join(repo, RUTA_TEMAS)).then(() => true, () => false)
       const { id: temaId, creado } = await asegurarTema(repo, tema)
       if (tema.trim() && !temaId) throw new Error('El tema no es válido.')
+      const portada = borrador.imagen ? `public/img/oraciones/${id}.jpg` : undefined
       const item: Oracion = { id, slug: slugUnico(titulo, new Set(catalogoPrevio.map(o => o.slug))), titulo: titulo.trim(), descripcion: descripcion.trim(),
         fecha: new Date().toISOString(), ...(temaId ? { temaId } : {}), audio: `/audio/${id}.mp3`,
-        duracion: borrador.info.duracion, bytes: borrador.info.bytes, ...(parrafos ? { transcripcion: `${id}.json` } : {}) }
-      const archivos = [audio, RUTA_CATALOGO, ...(parrafos ? [ficha] : []), ...(creado ? [RUTA_TEMAS] : [])]
+        duracion: borrador.info.duracion, bytes: borrador.info.bytes, ...(portada ? { imagen: `/img/oraciones/${id}.jpg` } : {}), ...(parrafos ? { transcripcion: `${id}.json` } : {}) }
+      const archivos = [audio, RUTA_CATALOGO, ...(portada ? [portada] : []), ...(parrafos ? [ficha] : []), ...(creado ? [RUTA_TEMAS] : [])]
       try {
         await copyFile(borrador.archivo, path.join(repo, audio), constants.COPYFILE_EXCL)
+        if (portada && borrador.imagen) {
+          await mkdir(path.join(repo, 'public/img/oraciones'), { recursive: true })
+          await copyFile(borrador.imagen, path.join(repo, portada), constants.COPYFILE_EXCL)
+        }
         if (parrafos) await writeFile(path.join(repo, ficha), JSON.stringify({ id, parrafos }, null, 2) + '\n', { flag: 'wx' })
         await writeFile(path.join(repo, RUTA_CATALOGO), JSON.stringify({ oraciones: [...catalogoPrevio, item] }, null, 2) + '\n')
         await git(['add', '--', ...archivos], repo)
@@ -177,6 +201,7 @@ export async function publicarAudio(repo: string, id: string, titulo: string, de
         await git(['reset', '--', ...archivos], repo)
         await rm(path.join(repo, audio), { force: true })
         await rm(path.join(repo, ficha), { force: true })
+        if (portada) await rm(path.join(repo, portada), { force: true })
         if (catalogoPrevio.length) await git(['checkout', '--', RUTA_CATALOGO], repo).catch(() => undefined)
         else await rm(path.join(repo, RUTA_CATALOGO), { force: true })
         if (creado && teniaTemas) await git(['checkout', '--', RUTA_TEMAS], repo).catch(() => undefined)
@@ -191,8 +216,9 @@ export async function publicarAudio(repo: string, id: string, titulo: string, de
         throw new Error('La oración está guardada localmente, pero no se pudo enviar. Revisa la conexión y pulsa Publicar otra vez. Si sigue fallando, contacta a Lucas.')
       }
     }
+    const slug = borrador.publicacion.slug
     await rm(borrador.carpeta, { recursive: true, force: true })
     borrador = undefined
-    return { url: `https://drluisangeldiaz.com/oraciones#${id}` }
+    return { url: `https://drluisangeldiaz.com/oraciones/${slug}` }
   })
 }

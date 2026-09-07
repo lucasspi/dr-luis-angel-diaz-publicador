@@ -6,8 +6,14 @@ Al preparar el audio, la transcripción arranca sola si el transcriptor local
 está listo; si no, se publica sólo el audio y se ofrece configurarlo. El texto
 queda editable (sección colapsada) pero no exige revisión párrafo a párrafo.
 Con el texto listo, Codex (la cuenta ChatGPT del Dr. Luis, igual que en las
-reflexiones) propone título y descripción; si Codex falla o está en su límite,
-no se muestra error: los campos se escriben a mano. Mientras hay un audio
+reflexiones) propone título, descripción y el prompt de la portada; si Codex
+falla o está en su límite, no se muestra error: los campos se escriben a mano.
+Después del título, la portada 16:9 se genera sola con fal.ai (misma clave
+`falApiKey` que las reflexiones; sin clave se publica sin portada, sin error) y
+se guarda en `public/img/oraciones/<uuid>.jpg`; el Dr. Luis puede pedir otra o
+publicar sin portada. En el sitio, /oraciones lista cards con el mismo dibujo
+que las reflexiones (acento violeta) y cada oración tiene su página en
+/oraciones/<slug>, con reproductor, texto que sigue la voz, descarga y WhatsApp. Mientras hay un audio
 en curso, el recuadro de arrastre se oculta y un botón **Cancelar** vuelve al
 inicio (corta la transcripción si estaba en marcha). Soltar un archivo fuera del
 recuadro no hace nada: la ventana anula el drop global. Todo el flujo está en

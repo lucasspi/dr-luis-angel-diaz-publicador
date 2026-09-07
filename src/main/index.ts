@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { prepararAudio, publicarAudio, listarAudios, transcribirAudio, cancelarTranscripcion, audioOcupado, textoTranscrito } from './lib/audios'
+import { prepararAudio, publicarAudio, listarAudios, transcribirAudio, cancelarTranscripcion, audioOcupado, textoTranscrito, generarImagenAudio, quitarImagenAudio } from './lib/audios'
 import { titularOracionConCodex } from './lib/codexFormat'
 import { GestorModelo } from './lib/transcripcion/modelo'
 import { encontrarWhisper } from './lib/transcripcion/motor'
@@ -125,6 +125,12 @@ app.whenReady().then(() => {
     // El renderer no muestra este error (el fallback es escribir a mano); queda aquí para diagnosticar.
     return titularOracionConCodex(texto).catch((e: unknown) => { console.error('[sugerir-titulo-audio]', e); throw e })
   })
+  ipcMain.handle('generar-imagen-audio', async (_event, id: string, prompt: string) => {
+    const config = await cargarConfig()
+    if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
+    return generarImagenAudio(id, prompt, config.falApiKey).catch((e: unknown) => { console.error('[generar-imagen-audio]', e); throw e })
+  })
+  ipcMain.handle('quitar-imagen-audio', (_event, id: string) => quitarImagenAudio(id))
   ipcMain.handle('publicar-audio', async (_event, id: string, titulo: string, descripcion: string, tema: string, textos?: string[]) => {
     const config = await cargarConfig()
     if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')

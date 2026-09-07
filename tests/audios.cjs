@@ -8,12 +8,12 @@ const ts = require('typescript')
 ;(async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'test-oraciones-'))
   try {
-    for (const file of ['audios', 'git', 'temas', 'slug', 'transcripcion/motor', 'transcripcion/segmentos']) {
+    for (const file of ['audios', 'git', 'temas', 'slug', 'imageGen', 'transcripcion/motor', 'transcripcion/segmentos']) {
       const source = await fs.readFile(path.join(__dirname, '../src/main/lib', `${file}.ts`), 'utf8')
       await fs.mkdir(path.dirname(path.join(root, `${file}.js`)), { recursive: true })
       await fs.writeFile(path.join(root, `${file}.js`), ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText)
     }
-    const { prepararAudio, publicarAudio, listarAudios, transcribirAudio } = require(path.join(root, 'audios.js'))
+    const { prepararAudio, publicarAudio, listarAudios, transcribirAudio, generarImagenAudio, quitarImagenAudio } = require(path.join(root, 'audios.js'))
     const remote = path.join(root, 'remote.git'), repo = path.join(root, 'repo')
     const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
     await fs.mkdir(repo)
@@ -39,6 +39,13 @@ const ts = require('typescript')
     assert.equal(parrafos.length, 2)
     await assert.rejects(publicarAudio(repo, audio.id, 'Oración', '', '', ['Incomplete']), /Vuelve a transcribir/)
 
+    await assert.rejects(generarImagenAudio(audio.id, 'a prayer', ''), /falApiKey/)
+    require(path.join(root, 'imageGen.js')).generarImagen = async (_prompt, _key, dest) => { await fs.writeFile(dest, 'jpeg-bytes') }
+    const { preview } = await generarImagenAudio(audio.id, 'soft light over a quiet home', 'key')
+    assert(preview.startsWith('data:image/jpeg;base64,'))
+    quitarImagenAudio(audio.id)
+    await generarImagenAudio(audio.id, 'soft light over a quiet home', 'key')
+
     assert(audio.bytes < audio.bytesOriginal); assert(audio.duracion > 1.9 && audio.duracion < 2.2)
     assert(audio.preview.startsWith('data:audio/mpeg;base64,'))
     await assert.rejects(publicarAudio(repo, audio.id, '', '', ''), /título/)
@@ -57,7 +64,7 @@ const ts = require('typescript')
     assert.equal((await listarAudios(repo)).length, 1)
     await fs.rm(hook)
     const result = await publicarAudio(repo, audio.id, 'Oración <familia>', 'Una pausa\nCon Dios', 'Familia', ['Gracias por este día.', 'Amén.'])
-    assert(result.url.endsWith(`#${audio.id}`)); assert.equal(git('rev-parse', 'HEAD'), commit)
+    assert.equal(result.url, 'https://drluisangeldiaz.com/oraciones/oracion-familia'); assert.equal(git('rev-parse', 'HEAD'), commit)
     // El trabajo ajeno sigue donde estaba (autostash) y no entró en el commit.
     assert.equal(git('status', '--porcelain'), 'M README.md\n?? pending.txt')
     await fs.rm(path.join(repo, 'pending.txt')); git('checkout', '--', 'README.md')
@@ -70,9 +77,11 @@ const ts = require('typescript')
     const catalogo = JSON.parse(await fs.readFile(path.join(repo, 'content/oraciones.json'), 'utf8')).oraciones
     assert.equal(catalogo.length, 1); assert.equal(catalogo[0].id, audio.id); assert.equal(catalogo[0].slug, 'oracion-familia')
     assert.equal(catalogo[0].temaId, 'familia'); assert.equal(catalogo[0].transcripcion, `${audio.id}.json`); assert.equal(catalogo[0].parrafos, undefined)
+    assert.equal(catalogo[0].imagen, `/img/oraciones/${audio.id}.jpg`)
+    assert.equal(await fs.readFile(path.join(repo, 'public/img/oraciones', `${audio.id}.jpg`), 'utf8'), 'jpeg-bytes')
     assert.deepEqual(JSON.parse(await fs.readFile(path.join(repo, 'content/temas.json'), 'utf8')).temas.map(t => t.id), ['familia'])
     assert.deepEqual(cargarOraciones(repo)[0].tema, { nombre: 'Familia', slug: 'familia' })
-    assert.equal(git('show', '--stat', '--format=', 'HEAD').split('\n').filter(l => l.includes('|')).length, 4)
+    assert.equal(git('show', '--stat', '--format=', 'HEAD').split('\n').filter(l => l.includes('|')).length, 5)
     assert.deepEqual(cargarOraciones(repo)[0].parrafos, [{ inicio: 0, fin: 0.9, texto: 'Gracias por este día.' }, { inicio: 1.1, fin: 1.9, texto: 'Amén.' }])
     await fs.rm(path.join(repo, 'public/audio', `${audio.id}.mp3`))
     assert.throws(() => cargarOraciones(repo))

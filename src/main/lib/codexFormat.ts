@@ -89,8 +89,8 @@ export async function formatearConCodex(textoBruto: string): Promise<ReflexionFo
 
 const SCHEMA_ORACION = {
   type: 'object',
-  properties: { titulo: { type: 'string' }, descripcion: { type: 'string' } },
-  required: ['titulo', 'descripcion'],
+  properties: { titulo: { type: 'string' }, descripcion: { type: 'string' }, image_prompt: { type: 'string' } },
+  required: ['titulo', 'descripcion', 'image_prompt'],
   additionalProperties: false
 }
 
@@ -100,21 +100,23 @@ Lee el archivo input.txt en este mismo directorio: es la transcripción automát
 Tu tarea:
 1. Escribe un "titulo" para la oración: corto (máximo 70 caracteres), en español, fiel a lo que se pide o agradece en la oración, sin comillas, sin numeración y sin inventar nada que la oración no diga. Ejemplos del tono: "Oración por la paz en el hogar", "Gracias por un nuevo día".
 2. Escribe una "descripcion": una o dos frases (máximo 240 caracteres) que digan de qué trata la oración y para qué momento sirve, en tercera persona o de forma impersonal, sin repetir el título.
+3. Escribe un "image_prompt": descripción en inglés de una imagen 16:9 que acompañe la oración — luz suave y esperanza, naturaleza o un interior sereno, sin rostros reconocibles, sin texto en la imagen.
 
-Tu respuesta final (el último mensaje) debe ser únicamente el JSON con esos dos campos, siguiendo exactamente el schema dado. No crees ni escribas ningún archivo tú mismo: la respuesta se guarda sola en output.json.`
+Tu respuesta final (el último mensaje) debe ser únicamente el JSON con esos tres campos, siguiendo exactamente el schema dado. No crees ni escribas ningún archivo tú mismo: la respuesta se guarda sola en output.json.`
 
 /** Título y descripción para una oración en audio a partir de su transcripción. */
-export async function titularOracionConCodex(texto: string): Promise<{ titulo: string; descripcion: string }> {
+export async function titularOracionConCodex(texto: string): Promise<{ titulo: string; descripcion: string; image_prompt: string }> {
   const scratchDir = await mkdtemp(path.join(tmpdir(), 'dr-luis-oracion-'))
   try {
     await writeFile(path.join(scratchDir, 'input.txt'), texto, 'utf-8')
     await writeFile(path.join(scratchDir, 'schema.json'), JSON.stringify(SCHEMA_ORACION, null, 2), 'utf-8')
     await runCodex(scratchDir, PROMPT_ORACION)
-    const parsed = JSON.parse(await readFile(path.join(scratchDir, 'output.json'), 'utf-8')) as { titulo?: unknown; descripcion?: unknown }
+    const parsed = JSON.parse(await readFile(path.join(scratchDir, 'output.json'), 'utf-8')) as { titulo?: unknown; descripcion?: unknown; image_prompt?: unknown }
     const titulo = typeof parsed.titulo === 'string' ? quitarPrefijoSerie(parsed.titulo).replace(/^["“]|["”]$/g, '').slice(0, 120).trim() : ''
     const descripcion = typeof parsed.descripcion === 'string' ? parsed.descripcion.trim().slice(0, 2000) : ''
+    const image_prompt = typeof parsed.image_prompt === 'string' ? parsed.image_prompt.trim().slice(0, 1000) : ''
     if (!titulo) throw new Error('Codex no propuso un título.')
-    return { titulo, descripcion }
+    return { titulo, descripcion, image_prompt }
   } finally {
     await rm(scratchDir, { recursive: true, force: true })
   }
