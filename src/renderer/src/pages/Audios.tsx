@@ -160,10 +160,11 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
               </div>
               <audio ref={player} onTimeUpdate={e => setTiempo(e.currentTarget.currentTime)} onSeeked={e => setTiempo(e.currentTarget.currentTime)} controls preload="metadata" src={audio.preview} style={{ width: '100%' }} aria-label="Escuchar la oración antes de publicar" />
               {ocupado === TRANSCRIBIENDO && <>
-                <Typography.Text role="status">Escribiendo el texto de la oración… puedes completar los datos mientras tanto.</Typography.Text>
+                <Typography.Text role="status">Escribiendo el texto de la oración… en un momento podrás completar los datos.</Typography.Text>
                 <Progress percent={progreso} status="active" />
               </>}
               {sinTranscriptor && <Alert type="info" showIcon message="Se publicará sólo el audio" description={<>Para publicar también el texto, hace falta el transcriptor. <Button type="link" onClick={abrirConfiguracion}>Configurar transcriptor</Button></>} />}
+              {ocupado !== TRANSCRIBIENDO && <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
                 <label htmlFor="audio-titulo">Título de la oración</label>
                 {!sugiriendo && sugerenciaFallo && <Typography.Text type="secondary">No hubo sugerencia esta vez; escríbelos tú.</Typography.Text>}
@@ -197,6 +198,7 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
                   </>}
                 </Space>
               }]} />}
+              </>}
               <Typography.Text type="secondary">Al publicar, cualquier persona podrá escuchar y descargar esta oración.</Typography.Text>
             </>}
           </Space>
