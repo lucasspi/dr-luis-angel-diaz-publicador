@@ -1,4 +1,5 @@
 import { AutoComplete } from 'antd'
+import { DownOutlined } from '@ant-design/icons'
 import type { Tema } from '../../../preload'
 
 // "Oración" ~ "oracion": la búsqueda ignora tildes y mayúsculas.
@@ -22,6 +23,8 @@ export function SelectorTema({ id, temas, value, onChange, disabled }: {
   return (
     <AutoComplete
       id={id}
+      size="large"
+      suffixIcon={<DownOutlined />}
       style={{ width: '100%' }}
       options={opciones}
       value={value}

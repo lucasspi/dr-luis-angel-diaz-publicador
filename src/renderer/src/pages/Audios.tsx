@@ -203,8 +203,12 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
               <Input id="audio-titulo" size="large" value={titulo} maxLength={120} disabled={enviando || sugiriendo} placeholder="Una oración por nuestra familia" onChange={e => actualizar({ titulo: e.target.value })} />
               <label className="publicar-etiqueta" htmlFor="audio-descripcion">Descripción (opcional)</label>
               <Input.TextArea id="audio-descripcion" value={descripcion} maxLength={2000} autoSize={{ minRows: 2, maxRows: 6 }} disabled={enviando || sugiriendo} onChange={e => actualizar({ descripcion: e.target.value })} />
-              <label className="publicar-etiqueta" htmlFor="audio-tema">Tema (opcional)</label>
+              <div className="audio-tema-destacado">
+                <label className="publicar-etiqueta" htmlFor="audio-tema">¿Cuál es el tema de esta oración?</label>
+                <Typography.Text type="secondary">Elige un tema para que los lectores puedan encontrarla fácilmente.</Typography.Text>
               <SelectorTema id="audio-tema" temas={temas} value={tema} onChange={nombre => actualizar({ tema: nombre })} disabled={enviando} />
+                <Typography.Text type="secondary" className="audio-tema-ayuda">Opcional · Puedes buscar un tema de la lista o escribir uno nuevo.</Typography.Text>
+              </div>
               </section>
               <section className="publicar-panel audio-campos">
                 <div className="publicar-paso"><span>3</span><div><Typography.Title level={4}>Portada y texto</Typography.Title><Typography.Text type="secondary">Elige cómo acompañar tu grabación en el sitio.</Typography.Text></div></div>
