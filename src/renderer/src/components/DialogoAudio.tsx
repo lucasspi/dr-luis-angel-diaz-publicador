@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Alert, App, Input, Modal, Space, Tag, Typography } from 'antd'
+import { Alert, App, Input, Modal, Space, Typography } from 'antd'
 import type { Oracion, Tema } from '../../../preload'
+import { SelectorTema } from './SelectorTema'
 
 const { Paragraph, Text } = Typography
 const mensaje = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
@@ -20,17 +21,16 @@ export function DialogoAudio({ oracion, temas, onCerrar, onListo }: {
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [tema, setTema] = useState('')
-  const [temaNuevo, setTemaNuevo] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
   const nombreDe = (id?: string): string => (id && temas.find(t => t.id === id)?.nombre) || ''
   useEffect(() => {
     setTitulo(oracion?.titulo ?? ''); setDescripcion(oracion?.descripcion ?? '')
-    setTema(nombreDe(oracion?.temaId)); setTemaNuevo(''); setError('')
+    setTema(nombreDe(oracion?.temaId)); setError('')
   }, [oracion]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const temaFinal = temaNuevo.trim() || tema
+  const temaFinal = tema.trim()
   const cambió = oracion !== null && titulo.trim() !== '' && (
     titulo.trim() !== oracion.titulo || descripcion.trim() !== oracion.descripcion || temaFinal !== nombreDe(oracion.temaId))
 
@@ -63,10 +63,7 @@ export function DialogoAudio({ oracion, temas, onCerrar, onListo }: {
         </div>
         <div>
           <label htmlFor="editar-tema">Tema (opcional)</label>
-          {temas.length > 0 && <Space size={[4, 8]} wrap style={{ marginBlock: 8 }}>
-            {temas.map(t => <Tag.CheckableTag key={t.id} checked={!temaNuevo.trim() && tema === t.nombre} onChange={() => { setTema(tema === t.nombre ? '' : t.nombre); setTemaNuevo('') }} style={{ fontSize: 14, padding: '4px 12px', border: '1px solid #d9d9d9' }}>{t.nombre}</Tag.CheckableTag>)}
-          </Space>}
-          <Input id="editar-tema" placeholder="O escribe un tema nuevo…" value={temaNuevo} maxLength={120} allowClear disabled={guardando} onChange={e => setTemaNuevo(e.target.value)} />
+          <SelectorTema id="editar-tema" temas={temas} value={tema} onChange={setTema} disabled={guardando} />
         </div>
         <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 13 }}>
           La dirección <b>no</b> se mueve — sigue siendo <Text code style={{ fontSize: 12 }}>/oraciones/{oracion.slug}</Text>. El audio y el texto tampoco cambian. Se publica solo y tarda 1–2 minutos en verse.

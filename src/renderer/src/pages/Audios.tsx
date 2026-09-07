@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
-import { Alert, Button, Card, Input, Space, Typography, Checkbox, Progress, Popconfirm, Upload, message, Tag, Collapse } from 'antd'
+import { Alert, Button, Card, Input, Space, Typography, Checkbox, Progress, Popconfirm, Upload, message, Collapse } from 'antd'
 import type { RcFile } from 'antd/es/upload'
 import { AudioOutlined, UploadOutlined, CloseOutlined } from '@ant-design/icons'
 import { IconoIA } from '../components/IconoIA'
+import { SelectorTema } from '../components/SelectorTema'
 import type { AudioPreparado, ParrafoOracion, Tema } from '../../../preload'
 import { Encabezado } from '../components/Encabezado'
 
@@ -20,12 +21,12 @@ const ENVIANDO = 'Enviando la oración…'
 let estado: {
   audio?: AudioPreparado; titulo: string; descripcion: string; ocupado: string; error: string; url: string
   parrafos: ParrafoOracion[]; incluirTexto: boolean; progreso: number; sinTranscriptor: boolean
-  tema: string; temaNuevo: string
+  tema: string
   /** El título que puso la app (nombre del archivo o sugerencia). Si el usuario lo cambió, no se pisa. */
   tituloAuto: string; sugiriendo: boolean; sugerenciaFallo: boolean
   /** Portada: data URL para previsualizar; el archivo vive en el borrador del proceso principal. */
   imagen: string; imagenPrompt: string; generandoImagen: boolean; imagenFallo: '' | 'sin-clave' | 'error'
-} = { titulo: '', descripcion: '', ocupado: '', error: '', url: '', parrafos: [], incluirTexto: true, progreso: 0, sinTranscriptor: false, tema: '', temaNuevo: '', tituloAuto: '', sugiriendo: false, sugerenciaFallo: false, imagen: '', imagenPrompt: '', generandoImagen: false, imagenFallo: '' }
+} = { titulo: '', descripcion: '', ocupado: '', error: '', url: '', parrafos: [], incluirTexto: true, progreso: 0, sinTranscriptor: false, tema: '', tituloAuto: '', sugiriendo: false, sugerenciaFallo: false, imagen: '', imagenPrompt: '', generandoImagen: false, imagenFallo: '' }
 const observadores = new Set<() => void>()
 function actualizar(cambio: Partial<typeof estado>): void {
   estado = { ...estado, ...cambio }
@@ -45,7 +46,7 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
     const off = window.api.onProgresoTranscripcion(progreso => actualizar({ progreso }))
     return () => { observadores.delete(refrescar); off() }
   }, [])
-  const { audio, titulo, descripcion, ocupado, error, url, parrafos, incluirTexto, progreso, sinTranscriptor, tema, temaNuevo, sugiriendo, sugerenciaFallo, imagen, imagenPrompt, generandoImagen, imagenFallo } = estado
+  const { audio, titulo, descripcion, ocupado, error, url, parrafos, incluirTexto, progreso, sinTranscriptor, tema, sugiriendo, sugerenciaFallo, imagen, imagenPrompt, generandoImagen, imagenFallo } = estado
 
   // Título y descripción propuestos por Codex a partir del texto. Si Codex no
   // responde (límite de uso, sin sesión), no pasa nada: se escriben a mano.
@@ -133,14 +134,14 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
   function cancelar(): void {
     if (estado.ocupado === TRANSCRIBIENDO) window.api.cancelarTranscripcion().catch(() => undefined)
     player.current?.pause()
-    actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', parrafos: [], incluirTexto: true, error: '', url: '', ocupado: '', progreso: 0, sinTranscriptor: false, tema: '', temaNuevo: '', sugiriendo: false, sugerenciaFallo: false, imagen: '', imagenPrompt: '', generandoImagen: false, imagenFallo: '' })
+    actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', parrafos: [], incluirTexto: true, error: '', url: '', ocupado: '', progreso: 0, sinTranscriptor: false, tema: '', sugiriendo: false, sugerenciaFallo: false, imagen: '', imagenPrompt: '', generandoImagen: false, imagenFallo: '' })
   }
   async function publicar(): Promise<void> {
     if (!audio) return
     actualizar({ ocupado: ENVIANDO, error: '', url: '' })
     try {
-      const resultado = await window.api.publicarAudio(audio.id, titulo, descripcion, temaNuevo.trim() || tema, incluirTexto && parrafos.length ? parrafos.map(p => p.texto) : undefined)
-      actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', url: resultado.url, parrafos: [], sinTranscriptor: false, tema: '', temaNuevo: '', sugerenciaFallo: false, imagen: '', imagenPrompt: '', imagenFallo: '' })
+      const resultado = await window.api.publicarAudio(audio.id, titulo, descripcion, tema, incluirTexto && parrafos.length ? parrafos.map(p => p.texto) : undefined)
+      actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', url: resultado.url, parrafos: [], sinTranscriptor: false, tema: '', sugerenciaFallo: false, imagen: '', imagenPrompt: '', imagenFallo: '' })
       cargarTemas()
     } catch (e) { actualizar({ error: mensaje(e) }) }
     finally { actualizar({ ocupado: '' }) }
@@ -197,10 +198,7 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
               <label htmlFor="audio-descripcion">Descripción (opcional)</label>
               <Input.TextArea id="audio-descripcion" value={descripcion} maxLength={2000} autoSize={{ minRows: 2, maxRows: 6 }} disabled={enviando || sugiriendo} onChange={e => actualizar({ descripcion: e.target.value })} />
               <label htmlFor="audio-tema">Tema (opcional)</label>
-              {temas.length > 0 && <Space size={[4, 8]} wrap>
-                {temas.map(t => <Tag.CheckableTag key={t.id} checked={!temaNuevo.trim() && tema === t.nombre} onChange={() => actualizar({ tema: tema === t.nombre ? '' : t.nombre, temaNuevo: '' })} style={{ fontSize: 14, padding: '4px 12px', border: '1px solid #d9d9d9' }}>{t.nombre}</Tag.CheckableTag>)}
-              </Space>}
-              <Input id="audio-tema" placeholder={temas.length ? 'O escribe un tema nuevo…' : 'Ej.: Familia, Oración, Sanidad…'} value={temaNuevo} maxLength={120} allowClear disabled={enviando} onChange={e => actualizar({ temaNuevo: e.target.value })} />
+              <SelectorTema id="audio-tema" temas={temas} value={tema} onChange={nombre => actualizar({ tema: nombre })} disabled={enviando} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
                 <label>Imagen de portada</label>
                 {imagenFallo === 'sin-clave' && <Typography.Text type="secondary">Sin portada: falta la clave de imágenes. Contacta a Lucas.</Typography.Text>}
