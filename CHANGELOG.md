@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.4.3
+
+- Sincronización manual de suscriptores con Resend desde Configuración.
+- Procesamiento manual de avisos pendientes, con confirmación antes del envío.
+- Autorización administrativa independiente de la consulta de suscriptores.
+
 ## 0.4.2
 
 - Columna Oraciones en la tabla de temas, con conteo por tema y ordenación.
