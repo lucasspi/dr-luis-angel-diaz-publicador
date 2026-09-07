@@ -6,16 +6,24 @@ export interface EstadoModelo {
   nombre: string; bytes: number; porcentaje: number; mensaje?: string; enUso?: boolean
 }
 export interface ConfigTranscripcion { modelo: EstadoModelo; motorDisponible: boolean }
+/** Una fila de content/oraciones.json. La transcripción vive aparte. */
 export interface Oracion {
-  parrafos?: ParrafoOracion[]
   id: string
+  /** Sale del título; único en el catálogo. Reservado para /oraciones/<slug>. */
+  slug: string
   titulo: string
   descripcion: string
   fecha: string
+  /** Un tema tiene varias oraciones; una oración, un tema (o ninguno). */
+  temaId?: string
+  audio: string
   duracion: number
   bytes: number
-  audio: string
+  /** Nombre del archivo en content/oraciones/ con los párrafos, si hay texto. */
+  transcripcion?: string
+  parrafos?: ParrafoOracion[]
 }
+export interface SugerenciaOracion { titulo: string; descripcion: string }
 export interface AudioPreparado {
   id: string
   nombre: string
@@ -111,8 +119,10 @@ const api = {
   elegirAudio: (): Promise<string | null> => ipcRenderer.invoke('elegir-audio'),
   prepararAudio: (archivo: string): Promise<AudioPreparado> => ipcRenderer.invoke('preparar-audio', archivo),
   listarAudios: (): Promise<Oracion[]> => ipcRenderer.invoke('listar-audios'),
-  publicarAudio: (id: string, titulo: string, descripcion: string, textos?: string[]): Promise<ResultadoProceso> =>
-    ipcRenderer.invoke('publicar-audio', id, titulo, descripcion, textos),
+  publicarAudio: (id: string, titulo: string, descripcion: string, tema: string, textos?: string[]): Promise<ResultadoProceso> =>
+    ipcRenderer.invoke('publicar-audio', id, titulo, descripcion, tema, textos),
+  /** Título y descripción propuestos por Codex a partir de la transcripción. Falla en silencio: el fallback es escribirlos a mano. */
+  sugerirTituloAudio: (id: string, textos: string[]): Promise<SugerenciaOracion> => ipcRenderer.invoke('sugerir-titulo-audio', id, textos),
   obtenerConfig: (): Promise<ConfigInfo> => ipcRenderer.invoke('obtener-config'),
   elegirDocumento: (): Promise<string | null> => ipcRenderer.invoke('elegir-documento'),
   listarCategorias: (): Promise<string[]> => ipcRenderer.invoke('listar-categorias'),

@@ -1,0 +1,53 @@
+import { useEffect, useState } from 'react'
+import { Alert, Button, Empty, Space, Table, Tag, Typography } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
+import type { Oracion, Tema } from '../../../preload'
+
+const mb = (n: number): string => `${(n / 1000000).toFixed(1)} MB`
+const duracion = (n: number): string => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`
+const mensaje = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+
+// La tabla del catálogo (content/oraciones.json del sitio), con el tema resuelto
+// contra temas.json. Editar y borrar vendrán aquí.
+export default function ListaAudios(): JSX.Element {
+  const [oraciones, setOraciones] = useState<Oracion[]>([])
+  const [temas, setTemas] = useState<Map<string, Tema>>(new Map())
+  const [error, setError] = useState('')
+  const [cargando, setCargando] = useState(false)
+  const cargar = async (): Promise<void> => {
+    setCargando(true); setError('')
+    try {
+      const [lista, listaTemas] = await Promise.all([window.api.listarAudios(), window.api.listarTemas()])
+      setOraciones(lista); setTemas(new Map(listaTemas.map(t => [t.id, t])))
+    } catch (e) { setError(mensaje(e)) } finally { setCargando(false) }
+  }
+  useEffect(() => { void cargar() }, [])
+  return (
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <Space style={{ width: '100%', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div>
+          <Typography.Title level={2}>Oraciones en audio</Typography.Title>
+          <Typography.Paragraph type="secondary">Todas las oraciones publicadas desde este equipo. Un envío reciente puede tardar unos minutos en verse en el sitio.</Typography.Paragraph>
+        </div>
+        <Button icon={<ReloadOutlined />} loading={cargando} onClick={() => void cargar()}>Actualizar</Button>
+      </Space>
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+      <Table<Oracion>
+        rowKey="id"
+        dataSource={oraciones}
+        loading={cargando}
+        pagination={{ pageSize: 20, hideOnSinglePage: true }}
+        locale={{ emptyText: <Empty description="Todavía no hay oraciones" /> }}
+        columns={[
+          { title: 'Título', dataIndex: 'titulo', render: (t: string, o) => <><Typography.Text strong>{t}</Typography.Text>{o.descripcion && <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 0 }}>{o.descripcion}</Typography.Paragraph>}</> },
+          { title: 'Tema', dataIndex: 'temaId', width: 200, render: (id?: string) => id ? <Tag>{temas.get(id)?.nombre ?? id}</Tag> : <Typography.Text type="secondary">—</Typography.Text> },
+          { title: 'Fecha', dataIndex: 'fecha', width: 120, render: (f: string) => new Date(f).toLocaleDateString('es'), sorter: (a, b) => a.fecha.localeCompare(b.fecha), defaultSortOrder: 'descend' },
+          { title: 'Duración', dataIndex: 'duracion', width: 100, render: duracion },
+          { title: 'Tamaño', dataIndex: 'bytes', width: 100, render: mb },
+          { title: 'Texto', dataIndex: 'transcripcion', width: 90, render: (t?: string) => t ? 'Sí' : 'No' },
+          { title: '', key: 'abrir', width: 100, render: (_, o) => <Button onClick={() => window.api.abrirEnlace(`https://drluisangeldiaz.com/oraciones#${o.id}`)}>Abrir</Button> }
+        ]}
+      />
+    </div>
+  )
+}

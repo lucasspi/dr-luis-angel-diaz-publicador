@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { prepararAudio, publicarAudio, listarAudios, transcribirAudio, cancelarTranscripcion, audioOcupado } from './lib/audios'
+import { prepararAudio, publicarAudio, listarAudios, transcribirAudio, cancelarTranscripcion, audioOcupado, textoTranscrito } from './lib/audios'
+import { titularOracionConCodex } from './lib/codexFormat'
 import { GestorModelo } from './lib/transcripcion/modelo'
 import { encontrarWhisper } from './lib/transcripcion/motor'
 import { cargarConfig, getConfigPath } from './lib/config'
@@ -117,10 +118,16 @@ app.whenReady().then(() => {
     if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
     return listarAudios(config.repoPath)
   })
-  ipcMain.handle('publicar-audio', async (_event, id: string, titulo: string, descripcion: string, textos?: string[]) => {
+  ipcMain.handle('sugerir-titulo-audio', async (_event, id: string, textos: string[]) => {
+    // Los párrafos ya corregidos por el usuario mandan; si no llegan, vale la transcripción cruda.
+    const texto = Array.isArray(textos) && textos.length ? textos.map(String).join('\n\n') : textoTranscrito(id)
+    if (!texto.trim()) throw new Error('No hay texto para sugerir un título.')
+    return titularOracionConCodex(texto)
+  })
+  ipcMain.handle('publicar-audio', async (_event, id: string, titulo: string, descripcion: string, tema: string, textos?: string[]) => {
     const config = await cargarConfig()
     if (!config) throw new Error('Falta configurar la aplicación. Contacta a Lucas.')
-    return publicarAudio(config.repoPath, id, titulo, descripcion, textos)
+    return publicarAudio(config.repoPath, id, titulo, descripcion, tema, textos)
   })
 
   ipcMain.handle('elegir-documento', async () => {

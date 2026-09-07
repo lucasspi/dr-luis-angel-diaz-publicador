@@ -63,7 +63,7 @@ export async function formatearConCodex(textoBruto: string): Promise<ReflexionFo
     await writeFile(path.join(scratchDir, 'input.txt'), textoBruto, 'utf-8')
     await writeFile(path.join(scratchDir, 'schema.json'), JSON.stringify(OUTPUT_SCHEMA, null, 2), 'utf-8')
 
-    await runCodex(scratchDir)
+    await runCodex(scratchDir, PROMPT)
 
     const raw = await readFile(path.join(scratchDir, 'output.json'), 'utf-8')
     const parsed = JSON.parse(raw) as ReflexionFormateada
@@ -82,6 +82,39 @@ export async function formatearConCodex(textoBruto: string): Promise<ReflexionFo
     parsed.slug = quitarPrefijoSerieDeSlug(parsed.slug)
 
     return parsed
+  } finally {
+    await rm(scratchDir, { recursive: true, force: true })
+  }
+}
+
+const SCHEMA_ORACION = {
+  type: 'object',
+  properties: { titulo: { type: 'string' }, descripcion: { type: 'string' } },
+  required: ['titulo', 'descripcion'],
+  additionalProperties: false
+}
+
+const PROMPT_ORACION = `Eres el asistente editorial del sitio del Dr. Luis Ángel Díaz.
+Lee el archivo input.txt en este mismo directorio: es la transcripción automática de una oración que el Dr. Luis grabó con su voz (puede tener errores de transcripción y ninguna puntuación fiable).
+
+Tu tarea:
+1. Escribe un "titulo" para la oración: corto (máximo 70 caracteres), en español, fiel a lo que se pide o agradece en la oración, sin comillas, sin numeración y sin inventar nada que la oración no diga. Ejemplos del tono: "Oración por la paz en el hogar", "Gracias por un nuevo día".
+2. Escribe una "descripcion": una o dos frases (máximo 240 caracteres) que digan de qué trata la oración y para qué momento sirve, en tercera persona o de forma impersonal, sin repetir el título.
+
+Tu respuesta final (el último mensaje) debe ser únicamente el JSON con esos dos campos, siguiendo exactamente el schema dado. No crees ni escribas ningún archivo tú mismo: la respuesta se guarda sola en output.json.`
+
+/** Título y descripción para una oración en audio a partir de su transcripción. */
+export async function titularOracionConCodex(texto: string): Promise<{ titulo: string; descripcion: string }> {
+  const scratchDir = await mkdtemp(path.join(tmpdir(), 'dr-luis-oracion-'))
+  try {
+    await writeFile(path.join(scratchDir, 'input.txt'), texto, 'utf-8')
+    await writeFile(path.join(scratchDir, 'schema.json'), JSON.stringify(SCHEMA_ORACION, null, 2), 'utf-8')
+    await runCodex(scratchDir, PROMPT_ORACION)
+    const parsed = JSON.parse(await readFile(path.join(scratchDir, 'output.json'), 'utf-8')) as { titulo?: unknown; descripcion?: unknown }
+    const titulo = typeof parsed.titulo === 'string' ? quitarPrefijoSerie(parsed.titulo).replace(/^["“]|["”]$/g, '').slice(0, 120).trim() : ''
+    const descripcion = typeof parsed.descripcion === 'string' ? parsed.descripcion.trim().slice(0, 2000) : ''
+    if (!titulo) throw new Error('Codex no propuso un título.')
+    return { titulo, descripcion }
   } finally {
     await rm(scratchDir, { recursive: true, force: true })
   }
@@ -106,7 +139,7 @@ function resolverCodex(): string {
   return 'codex'
 }
 
-function runCodex(cwd: string): Promise<void> {
+function runCodex(cwd: string, prompt: string): Promise<void> {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(
       resolverCodex(),
@@ -121,7 +154,7 @@ function runCodex(cwd: string): Promise<void> {
         'schema.json',
         '-o',
         'output.json',
-        PROMPT
+        prompt
       ],
       // stdin en 'ignore': con un pipe abierto, codex espera un EOF que nunca
       // llega ("Reading additional input from stdin...") y se cuelga para

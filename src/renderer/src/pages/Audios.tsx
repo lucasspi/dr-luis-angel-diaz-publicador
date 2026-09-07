@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
-import { Alert, Button, Card, Empty, Input, List, Space, Typography, Checkbox, Progress, Popconfirm, Upload, message } from 'antd'
+import { Alert, Button, Card, Input, Space, Typography, Checkbox, Progress, Popconfirm, Upload, message, Tag, Collapse } from 'antd'
 import type { RcFile } from 'antd/es/upload'
-import { AudioOutlined, UploadOutlined, CloseOutlined } from '@ant-design/icons'
-import type { AudioPreparado, Oracion, ParrafoOracion } from '../../../preload'
+import { AudioOutlined, UploadOutlined, CloseOutlined, BulbOutlined } from '@ant-design/icons'
+import type { AudioPreparado, ParrafoOracion, Tema } from '../../../preload'
 
 const { Dragger } = Upload
 const EXTENSIONES = ['m4a', 'mp3', 'wav', 'ogg', 'opus', 'aac', 'flac', 'amr', 'mp4', 'webm']
@@ -13,9 +13,15 @@ const duracion = (n: number): string => `${Math.floor(n / 60)}:${String(Math.flo
 // Electron antepone "Error invoking remote method '…': Error:" a los errores del proceso principal.
 const mensaje = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 const TRANSCRIBIENDO = 'Transcribiendo la oración…'
+const ENVIANDO = 'Enviando la oración…'
 // Conserva la preparación al cambiar de pestaña, también durante una publicación.
-let estado: { audio?: AudioPreparado; titulo: string; descripcion: string; ocupado: string; error: string; url: string; parrafos: ParrafoOracion[]; incluirTexto: boolean; progreso: number; sinTranscriptor: boolean } =
-  { titulo: '', descripcion: '', ocupado: '', error: '', url: '', parrafos: [], incluirTexto: true, progreso: 0, sinTranscriptor: false }
+let estado: {
+  audio?: AudioPreparado; titulo: string; descripcion: string; ocupado: string; error: string; url: string
+  parrafos: ParrafoOracion[]; incluirTexto: boolean; progreso: number; sinTranscriptor: boolean
+  tema: string; temaNuevo: string
+  /** El título que puso la app (nombre del archivo o sugerencia). Si el usuario lo cambió, no se pisa. */
+  tituloAuto: string; sugiriendo: boolean; sugerenciaFallo: boolean
+} = { titulo: '', descripcion: '', ocupado: '', error: '', url: '', parrafos: [], incluirTexto: true, progreso: 0, sinTranscriptor: false, tema: '', temaNuevo: '', tituloAuto: '', sugiriendo: false, sugerenciaFallo: false }
 const observadores = new Set<() => void>()
 function actualizar(cambio: Partial<typeof estado>): void {
   estado = { ...estado, ...cambio }
@@ -26,20 +32,34 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
   const player = useRef<HTMLAudioElement>(null)
   const [tiempo, setTiempo] = useState(0)
   const [, render] = useState(0)
-  const [oraciones, setOraciones] = useState<Oracion[]>([])
-  const [errorLista, setErrorLista] = useState('')
-  const cargar = (): void => {
-    window.api.listarAudios().then(setOraciones).catch(e => setErrorLista(mensaje(e)))
-  }
+  const [temas, setTemas] = useState<Tema[]>([])
+  const cargarTemas = (): void => { window.api.listarTemas().then(setTemas).catch(() => undefined) }
   useEffect(() => {
     const refrescar = (): void => render(n => n + 1)
     observadores.add(refrescar)
-    cargar()
+    cargarTemas()
     const off = window.api.onProgresoTranscripcion(progreso => actualizar({ progreso }))
     return () => { observadores.delete(refrescar); off() }
   }, [])
-  const { audio, titulo, descripcion, ocupado, error, url, parrafos, incluirTexto, progreso, sinTranscriptor } = estado
+  const { audio, titulo, descripcion, ocupado, error, url, parrafos, incluirTexto, progreso, sinTranscriptor, tema, temaNuevo, sugiriendo, sugerenciaFallo } = estado
 
+  // Título y descripción propuestos por Codex a partir del texto. Si Codex no
+  // responde (límite de uso, sin sesión), no pasa nada: se escriben a mano.
+  async function sugerir(id: string, forzar = false): Promise<void> {
+    if (!estado.parrafos.length) return
+    actualizar({ sugiriendo: true, sugerenciaFallo: false })
+    try {
+      const s = await window.api.sugerirTituloAudio(id, estado.parrafos.map(p => p.texto))
+      if (estado.audio?.id !== id) return
+      const tituloIntacto = estado.titulo === estado.tituloAuto
+      actualizar({
+        ...(forzar || tituloIntacto ? { titulo: s.titulo, tituloAuto: s.titulo } : {}),
+        ...(forzar || !estado.descripcion.trim() ? { descripcion: s.descripcion } : {})
+      })
+    } catch {
+      if (estado.audio?.id === id) actualizar({ sugerenciaFallo: true })
+    } finally { if (estado.audio?.id === id) actualizar({ sugiriendo: false }) }
+  }
   // La transcripción arranca sola tras preparar el audio. Si el transcriptor no está
   // listo no bloquea nada: se publica sin texto y se ofrece configurarlo.
   async function transcribir(id: string): Promise<void> {
@@ -48,17 +68,20 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
       const config = await window.api.estadoTranscriptor()
       if (config.modelo.fase !== 'listo' || !config.motorDisponible) { actualizar({ sinTranscriptor: true }); return }
       const nuevos = await window.api.transcribirAudio(id)
-      if (estado.audio?.id === id) actualizar({ parrafos: nuevos, incluirTexto: true })
+      if (estado.audio?.id !== id) return
+      actualizar({ parrafos: nuevos, incluirTexto: true, ocupado: '' })
+      await sugerir(id)
     } catch (e) {
       // Cancelar no es un error para quien lo pidió.
       if (estado.audio?.id === id) actualizar({ error: mensaje(e) })
     } finally { if (estado.ocupado === TRANSCRIBIENDO) actualizar({ ocupado: '' }) }
   }
   async function preparar(archivo: string): Promise<void> {
-    actualizar({ ocupado: 'Preparando tu nota de voz…', error: '', url: '', sinTranscriptor: false })
+    actualizar({ ocupado: 'Preparando tu nota de voz…', error: '', url: '', sinTranscriptor: false, sugerenciaFallo: false })
     try {
       const preparado = await window.api.prepararAudio(archivo)
-      actualizar({ audio: preparado, titulo: preparado.nombre.replace(/\.[^.]+$/, ''), descripcion: '', parrafos: [], incluirTexto: true, ocupado: '' })
+      const tituloInicial = preparado.nombre.replace(/\.[^.]+$/, '')
+      actualizar({ audio: preparado, titulo: tituloInicial, tituloAuto: tituloInicial, descripcion: '', parrafos: [], incluirTexto: true, ocupado: '' })
       await transcribir(preparado.id)
     } catch (e) { actualizar({ error: mensaje(e), ocupado: '' }) }
   }
@@ -87,15 +110,15 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
   function cancelar(): void {
     if (estado.ocupado === TRANSCRIBIENDO) window.api.cancelarTranscripcion().catch(() => undefined)
     player.current?.pause()
-    actualizar({ audio: undefined, titulo: '', descripcion: '', parrafos: [], incluirTexto: true, error: '', url: '', ocupado: '', progreso: 0, sinTranscriptor: false })
+    actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', parrafos: [], incluirTexto: true, error: '', url: '', ocupado: '', progreso: 0, sinTranscriptor: false, tema: '', temaNuevo: '', sugiriendo: false, sugerenciaFallo: false })
   }
   async function publicar(): Promise<void> {
     if (!audio) return
-    actualizar({ ocupado: 'Enviando la oración…', error: '', url: '' })
+    actualizar({ ocupado: ENVIANDO, error: '', url: '' })
     try {
-      const resultado = await window.api.publicarAudio(audio.id, titulo, descripcion, incluirTexto && parrafos.length ? parrafos.map(p => p.texto) : undefined)
-      actualizar({ audio: undefined, titulo: '', descripcion: '', url: resultado.url, parrafos: [], sinTranscriptor: false })
-      cargar()
+      const resultado = await window.api.publicarAudio(audio.id, titulo, descripcion, temaNuevo.trim() || tema, incluirTexto && parrafos.length ? parrafos.map(p => p.texto) : undefined)
+      actualizar({ audio: undefined, titulo: '', tituloAuto: '', descripcion: '', url: resultado.url, parrafos: [], sinTranscriptor: false, tema: '', temaNuevo: '', sugerenciaFallo: false })
+      cargarTemas()
     } catch (e) { actualizar({ error: mensaje(e) }) }
     finally { actualizar({ ocupado: '' }) }
   }
@@ -105,10 +128,11 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
     void player.current.play().catch(() => actualizar({ error: 'Pulsa el botón de reproducción para escuchar el audio.' }))
   }
   const preparando = !audio && !!ocupado
+  const enviando = ocupado === ENVIANDO
   const textoIncompleto = incluirTexto && parrafos.length > 0 && parrafos.some(p => !p.texto.trim())
   return (
     <div style={{ maxWidth: 820, margin: '0 auto' }}>
-      <Typography.Title level={2}>Oraciones en audio</Typography.Title>
+      <Typography.Title level={2}>Publicar oración en audio</Typography.Title>
       <Typography.Paragraph type="secondary">Comparte una oración con tu propia voz. Arrastra la grabación, escúchala y publícala.</Typography.Paragraph>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {error && <Alert type="error" showIcon message="No se pudo completar" description={error} />}
@@ -121,55 +145,60 @@ export default function Audios({ abrirConfiguracion }: { abrirConfiguracion: () 
               <p className="ant-upload-hint">O haz clic aquí para buscarla. Notas de WhatsApp, grabaciones del teléfono y otros audios. Hasta 60 minutos y 250 MB por archivo.</p>
               <Button size="large" icon={<UploadOutlined />} onClick={e => { e.stopPropagation(); void seleccionar() }} style={{ marginTop: 8 }}>Buscar en el equipo</Button>
             </Dragger>}
-            {preparando && <Space>
-              <Typography.Text role="status">{ocupado}</Typography.Text>
-            </Space>}
+            {preparando && <Typography.Text role="status">{ocupado}</Typography.Text>}
             {audio && <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0 }}>
                   <Typography.Text strong style={{ display: 'block' }}>{audio.nombre}</Typography.Text>
                   <Typography.Text type="secondary">{duracion(audio.duracion)} · Archivo original: {mb(audio.bytesOriginal)} · Listo para publicar: {mb(audio.bytes)}</Typography.Text>
                 </div>
-                <Button icon={<CloseOutlined />} disabled={ocupado === 'Enviando la oración…'} onClick={cancelar}>Cancelar</Button>
+                <Space>
+                  <Button danger icon={<CloseOutlined />} disabled={enviando} onClick={cancelar}>Cancelar</Button>
+                  <Button type="primary" size="large" icon={<UploadOutlined />} loading={enviando} disabled={!titulo.trim() || !!ocupado || textoIncompleto} onClick={publicar}>Publicar oración</Button>
+                </Space>
               </div>
               <audio ref={player} onTimeUpdate={e => setTiempo(e.currentTarget.currentTime)} onSeeked={e => setTiempo(e.currentTarget.currentTime)} controls preload="metadata" src={audio.preview} style={{ width: '100%' }} aria-label="Escuchar la oración antes de publicar" />
-              <label htmlFor="audio-titulo">Título de la oración</label>
-              <Input id="audio-titulo" size="large" value={titulo} maxLength={120} disabled={ocupado === 'Enviando la oración…'} placeholder="Una oración por nuestra familia" onChange={e => actualizar({ titulo: e.target.value })} />
-              <label htmlFor="audio-descripcion">Descripción (opcional)</label>
-              <Input.TextArea id="audio-descripcion" value={descripcion} maxLength={2000} rows={3} disabled={ocupado === 'Enviando la oración…'} onChange={e => actualizar({ descripcion: e.target.value })} />
               {ocupado === TRANSCRIBIENDO && <>
-                <Typography.Text role="status">Escribiendo el texto de la oración… puedes completar el título mientras tanto.</Typography.Text>
+                <Typography.Text role="status">Escribiendo el texto de la oración… puedes completar los datos mientras tanto.</Typography.Text>
                 <Progress percent={progreso} status="active" />
               </>}
               {sinTranscriptor && <Alert type="info" showIcon message="Se publicará sólo el audio" description={<>Para publicar también el texto, hace falta el transcriptor. <Button type="link" onClick={abrirConfiguracion}>Configurar transcriptor</Button></>} />}
-              {!!parrafos.length && <>
-                <Typography.Title level={4} style={{ marginBottom: 0 }}>Texto de la oración</Typography.Title>
-                <Checkbox checked={incluirTexto} disabled={!!ocupado} onChange={e => actualizar({ incluirTexto: e.target.checked })}>Publicar también el texto</Checkbox>
-                {incluirTexto && <>
-                  <Typography.Text type="secondary">Ya está listo. Si ves algún error, corrígelo aquí mismo; el resto no hace falta tocarlo.</Typography.Text>
-                  {parrafos.map((p, i) => <div key={i} style={{ padding: 12, borderRadius: 8, background: tiempo >= p.inicio && tiempo < p.fin ? '#e6f4ff' : '#fafafa' }}>
-                    <Button size="small" type="link" onClick={() => escuchar(p.inicio)}>Escuchar desde {duracion(p.inicio)}</Button>
-                    <Input.TextArea aria-label={`Párrafo ${i + 1}`} autoSize={{ minRows: 1, maxRows: 8 }} value={p.texto} maxLength={4000} disabled={!!ocupado} onChange={e => actualizar({ parrafos: parrafos.map((item, n) => n === i ? { ...item, texto: e.target.value } : item) })} />
-                  </div>)}
-                  {textoIncompleto && <Typography.Text type="warning">Hay un párrafo vacío: escribe algo o quita la marca de "Publicar también el texto".</Typography.Text>}
-                  <Popconfirm title="¿Volver a transcribir?" description="Se reemplazará el texto y tus correcciones." onConfirm={() => void transcribir(audio.id)} okText="Transcribir" cancelText="Conservar">
-                    <Button type="link" size="small" disabled={!!ocupado} style={{ paddingLeft: 0 }}>Volver a transcribir</Button>
-                  </Popconfirm>
-                </>}
-              </>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+                <label htmlFor="audio-titulo">Título de la oración</label>
+                {sugiriendo && <Typography.Text type="secondary" role="status"><BulbOutlined /> Proponiendo título y descripción…</Typography.Text>}
+                {!sugiriendo && sugerenciaFallo && <Typography.Text type="secondary">No hubo sugerencia esta vez; escríbelos tú.</Typography.Text>}
+                {!sugiriendo && !!parrafos.length && <Button type="link" size="small" icon={<BulbOutlined />} disabled={enviando} onClick={() => void sugerir(audio.id, true)}>{sugerenciaFallo ? 'Intentar de nuevo' : 'Proponer otro título'}</Button>}
+              </div>
+              <Input id="audio-titulo" size="large" value={titulo} maxLength={120} disabled={enviando} placeholder="Una oración por nuestra familia" onChange={e => actualizar({ titulo: e.target.value })} />
+              <label htmlFor="audio-descripcion">Descripción (opcional)</label>
+              <Input.TextArea id="audio-descripcion" value={descripcion} maxLength={2000} autoSize={{ minRows: 2, maxRows: 6 }} disabled={enviando} onChange={e => actualizar({ descripcion: e.target.value })} />
+              <label htmlFor="audio-tema">Tema (opcional)</label>
+              {temas.length > 0 && <Space size={[4, 8]} wrap>
+                {temas.map(t => <Tag.CheckableTag key={t.id} checked={!temaNuevo.trim() && tema === t.nombre} onChange={() => actualizar({ tema: tema === t.nombre ? '' : t.nombre, temaNuevo: '' })} style={{ fontSize: 14, padding: '4px 12px', border: '1px solid #d9d9d9' }}>{t.nombre}</Tag.CheckableTag>)}
+              </Space>}
+              <Input id="audio-tema" placeholder={temas.length ? 'O escribe un tema nuevo…' : 'Ej.: Familia, Oración, Sanidad…'} value={temaNuevo} maxLength={120} allowClear disabled={enviando} onChange={e => actualizar({ temaNuevo: e.target.value })} />
+              {!!parrafos.length && <Collapse ghost items={[{
+                key: 'texto',
+                label: <Space><Typography.Text strong>Texto de la oración</Typography.Text><Typography.Text type="secondary">{incluirTexto ? `${parrafos.length} párrafo${parrafos.length === 1 ? '' : 's'} · se publica con el audio` : 'no se publica'}</Typography.Text></Space>,
+                children: <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <Checkbox checked={incluirTexto} disabled={!!ocupado} onChange={e => actualizar({ incluirTexto: e.target.checked })}>Publicar también el texto</Checkbox>
+                  {incluirTexto && <>
+                    <Typography.Text type="secondary">Ya está listo. Si ves algún error, corrígelo aquí mismo; el resto no hace falta tocarlo.</Typography.Text>
+                    {parrafos.map((p, i) => <div key={i} style={{ padding: 12, borderRadius: 8, background: tiempo >= p.inicio && tiempo < p.fin ? '#e6f4ff' : '#fafafa' }}>
+                      <Button size="small" type="link" onClick={() => escuchar(p.inicio)}>Escuchar desde {duracion(p.inicio)}</Button>
+                      <Input.TextArea aria-label={`Párrafo ${i + 1}`} autoSize={{ minRows: 1, maxRows: 8 }} value={p.texto} maxLength={4000} disabled={!!ocupado} onChange={e => actualizar({ parrafos: parrafos.map((item, n) => n === i ? { ...item, texto: e.target.value } : item) })} />
+                    </div>)}
+                    {textoIncompleto && <Typography.Text type="warning">Hay un párrafo vacío: escribe algo o quita la marca de "Publicar también el texto".</Typography.Text>}
+                    <Popconfirm title="¿Volver a transcribir?" description="Se reemplazará el texto y tus correcciones." onConfirm={() => void transcribir(audio.id)} okText="Transcribir" cancelText="Conservar">
+                      <Button type="link" size="small" disabled={!!ocupado} style={{ paddingLeft: 0 }}>Volver a transcribir</Button>
+                    </Popconfirm>
+                  </>}
+                </Space>
+              }]} />}
               <Typography.Text type="secondary">Al publicar, cualquier persona podrá escuchar y descargar esta oración.</Typography.Text>
-              <Button type="primary" size="large" icon={<UploadOutlined />} loading={ocupado === 'Enviando la oración…'} disabled={!titulo.trim() || !!ocupado || textoIncompleto} onClick={publicar}>Publicar oración</Button>
             </>}
           </Space>
         </Card>
-        <section>
-          <Typography.Title level={3}>Oraciones guardadas</Typography.Title>
-          <Typography.Paragraph type="secondary">Lista de este equipo. Un envío pendiente puede tardar en aparecer en el sitio.</Typography.Paragraph>
-          {errorLista && <Alert type="error" message={errorLista} />}
-          <List dataSource={oraciones} locale={{ emptyText: <Empty description="Todavía no hay oraciones" /> }} renderItem={item => <List.Item actions={[<Button key="abrir" onClick={() => window.api.abrirEnlace(`https://drluisangeldiaz.com/oraciones#${item.id}`)}>Abrir</Button>]}>
-            <List.Item.Meta title={item.titulo} description={`${new Date(item.fecha).toLocaleDateString('es')} · ${duracion(item.duracion)} · ${mb(item.bytes)}`} />
-          </List.Item>} />
-        </section>
       </Space>
     </div>
   )

@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { access, copyFile, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
@@ -9,6 +9,8 @@ import type { GestorModelo } from './transcripcion/modelo'
 import { ejecutarWhisper } from './transcripcion/motor'
 import { parrafosWhisper, revisarParrafos } from './transcripcion/segmentos'
 import { git, sincronizar } from './git'
+import { asegurarTema, RUTA_TEMAS } from './temas'
+import { slugificarCategoria } from './slug'
 
 const ejecutar = promisify(execFile)
 const MAX_ENTRADA = 250 * 1024 * 1024
@@ -101,22 +103,42 @@ export async function transcribirAudio(id: string, modelos: GestorModelo, progre
   })
 }
 
-export async function listarAudios(repo: string): Promise<Oracion[]> {
-  const carpeta = path.join(repo, 'content/oraciones')
-  let nombres: string[]
-  try { nombres = await readdir(carpeta) } catch (e) {
+const RUTA_CATALOGO = path.join('content', 'oraciones.json')
+
+// El catálogo es la tabla de oraciones (identidad, tema, datos del audio). La
+// transcripción va aparte en content/oraciones/<id>.json. Ver content/README.md del sitio.
+async function leerCatalogo(repo: string): Promise<Oracion[]> {
+  try {
+    const { oraciones } = JSON.parse(await readFile(path.join(repo, RUTA_CATALOGO), 'utf8'))
+    return Array.isArray(oraciones) ? oraciones : []
+  } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return []
     throw e
   }
-  const items = await Promise.all(nombres.filter(n => n.endsWith('.json')).map(async n => JSON.parse(await readFile(path.join(carpeta, n), 'utf8')) as Oracion))
-  return items.sort((a, b) => b.fecha.localeCompare(a.fecha))
 }
 
-export async function publicarAudio(repo: string, id: string, titulo: string, descripcion: string, textos?: string[]): Promise<{ url: string }> {
+export async function listarAudios(repo: string): Promise<Oracion[]> {
+  return (await leerCatalogo(repo)).sort((a, b) => b.fecha.localeCompare(a.fecha))
+}
+
+function slugUnico(titulo: string, ocupados: Set<string>): string {
+  const base = slugificarCategoria(titulo) || 'oracion'
+  let slug = base
+  for (let n = 2; ocupados.has(slug); n++) slug = `${base}-${n}`
+  return slug
+}
+
+export function textoTranscrito(id: string): string {
+  if (!borrador || borrador.info.id !== id) throw new Error('Vuelve a seleccionar y preparar el audio.')
+  return (borrador.parrafos ?? []).map(p => p.texto).join('\n\n')
+}
+
+export async function publicarAudio(repo: string, id: string, titulo: string, descripcion: string, tema: string, textos?: string[]): Promise<{ url: string }> {
   return exclusivo(async () => {
     if (!borrador || borrador.info.id !== id) throw new Error('Vuelve a seleccionar y preparar el audio.')
     if (typeof titulo !== 'string' || !titulo.trim() || titulo.trim().length > 120) throw new Error('Escribe un título de hasta 120 caracteres.')
     if (typeof descripcion !== 'string' || descripcion.length > 2000) throw new Error('La descripción admite hasta 2000 caracteres.')
+    if (typeof tema !== 'string' || tema.length > 120) throw new Error('El tema admite hasta 120 caracteres.')
     if ((await git(['branch', '--show-current'], repo)).trim() !== 'master') throw new Error('El sitio debe estar en la rama master antes de publicar. Contacta a Lucas.')
     const audio = `public/audio/${id}.mp3`
     const ficha = `content/oraciones/${id}.json`
@@ -125,21 +147,36 @@ export async function publicarAudio(repo: string, id: string, titulo: string, de
       const parrafos = revisarParrafos(borrador.parrafos, textos)
       if ((await git(['status', '--porcelain'], repo)).trim()) throw new Error('Hay cambios pendientes en el sitio. Contacta a Lucas antes de publicar el audio.')
       await sincronizar(repo)
-      const item: Oracion = { ...(parrafos ? { parrafos } : {}), id, titulo: titulo.trim(), descripcion: descripcion.trim(), fecha: new Date().toISOString(),
-        duracion: borrador.info.duracion, bytes: borrador.info.bytes, audio: `/audio/${id}.mp3` }
+      const catalogoPrevio = await leerCatalogo(repo)
+      if (catalogoPrevio.some(o => o.id === id)) throw new Error('Esta oración ya está publicada.')
+      // El tema se da de alta aquí, después de comprobar que el sitio está limpio,
+      // para que temas.json entre en el mismo commit que la oración.
       await mkdir(path.join(repo, 'public/audio'), { recursive: true })
       await mkdir(path.join(repo, 'content/oraciones'), { recursive: true })
+      const teniaTemas = await stat(path.join(repo, RUTA_TEMAS)).then(() => true, () => false)
+      const { id: temaId, creado } = await asegurarTema(repo, tema)
+      if (tema.trim() && !temaId) throw new Error('El tema no es válido.')
+      const item: Oracion = { id, slug: slugUnico(titulo, new Set(catalogoPrevio.map(o => o.slug))), titulo: titulo.trim(), descripcion: descripcion.trim(),
+        fecha: new Date().toISOString(), ...(temaId ? { temaId } : {}), audio: `/audio/${id}.mp3`,
+        duracion: borrador.info.duracion, bytes: borrador.info.bytes, ...(parrafos ? { transcripcion: `${id}.json` } : {}) }
+      const archivos = [audio, RUTA_CATALOGO, ...(parrafos ? [ficha] : []), ...(creado ? [RUTA_TEMAS] : [])]
       try {
         await copyFile(borrador.archivo, path.join(repo, audio), constants.COPYFILE_EXCL)
-        await writeFile(path.join(repo, ficha), JSON.stringify(item, null, 2) + '\n', { flag: 'wx' })
-        await git(['add', '--', audio, ficha], repo)
-        await git(['commit', '--only', '-m', `oración: ${item.titulo}`, '--', audio, ficha], repo)
-        borrador.publicacion = item
+        if (parrafos) await writeFile(path.join(repo, ficha), JSON.stringify({ id, parrafos }, null, 2) + '\n', { flag: 'wx' })
+        await writeFile(path.join(repo, RUTA_CATALOGO), JSON.stringify({ oraciones: [...catalogoPrevio, item] }, null, 2) + '\n')
+        await git(['add', '--', ...archivos], repo)
+        await git(['commit', '--only', '-m', `oración: ${item.titulo}`, '--', ...archivos], repo)
+        borrador.publicacion = { ...item, ...(parrafos ? { parrafos } : {}) }
       } catch (error) {
-        // Sólo estos archivos nuevos pertenecen a esta operación.
-        await git(['reset', '--', audio, ficha], repo)
+        // Sólo lo que tocó esta operación: los archivos nuevos se borran, los
+        // que ya existían (catálogo, temas) vuelven a como estaban en HEAD.
+        await git(['reset', '--', ...archivos], repo)
         await rm(path.join(repo, audio), { force: true })
         await rm(path.join(repo, ficha), { force: true })
+        if (catalogoPrevio.length) await git(['checkout', '--', RUTA_CATALOGO], repo).catch(() => undefined)
+        else await rm(path.join(repo, RUTA_CATALOGO), { force: true })
+        if (creado && teniaTemas) await git(['checkout', '--', RUTA_TEMAS], repo).catch(() => undefined)
+        else if (creado) await rm(path.join(repo, RUTA_TEMAS), { force: true })
         throw error
       }
     }

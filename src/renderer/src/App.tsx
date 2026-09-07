@@ -3,14 +3,17 @@ import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'r
 import { App as AntApp, ConfigProvider, Tabs, Typography, Button, Badge } from 'antd'
 import {
   SettingOutlined,
+  AudioOutlined,
   BarChartOutlined,
   CloudUploadOutlined,
+  SoundOutlined,
   TagsOutlined,
   UnorderedListOutlined
 } from '@ant-design/icons'
 import esES from 'antd/locale/es_ES'
 import { type EstadoUpdate } from './components/BarraActualizacion'
 import Audios from './pages/Audios'
+import ListaAudios from './pages/ListaAudios'
 import { Configuracion } from './components/Configuracion'
 import Publicador from './pages/Publicador'
 import Publicaciones from './pages/Publicaciones'
@@ -33,8 +36,9 @@ const HUECO_SEMAFOROS = 82
 // por file://, donde las rutas con path real no resuelven.
 const PAGINAS = [
   { ruta: '/publicar', etiqueta: 'Publicar', icono: <CloudUploadOutlined /> },
-  { ruta: '/audios', etiqueta: 'Oraciones en audio', icono: <CloudUploadOutlined /> },
+  { ruta: '/publicar-audio', etiqueta: 'Publicar audio', icono: <AudioOutlined /> },
   { ruta: '/publicaciones', etiqueta: 'Publicaciones', icono: <UnorderedListOutlined /> },
+  { ruta: '/audios', etiqueta: 'Audios', icono: <SoundOutlined /> },
   { ruta: '/temas', etiqueta: 'Temas', icono: <TagsOutlined /> },
   { ruta: '/visitas', etiqueta: 'Visitas', icono: <BarChartOutlined /> }
 ]
@@ -99,7 +103,8 @@ function Cascara(): JSX.Element {
       <main style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 24 }}>
         <Routes>
           <Route path="/publicar" element={<Publicador />} />
-          <Route path="/audios" element={<Audios abrirConfiguracion={() => setConfiguracion(true)} />} />
+          <Route path="/publicar-audio" element={<Audios abrirConfiguracion={() => setConfiguracion(true)} />} />
+          <Route path="/audios" element={<ListaAudios />} />
           <Route path="/publicaciones" element={<Publicaciones />} />
           <Route path="/temas" element={<Temas />} />
           <Route path="/visitas" element={<Visitas />} />

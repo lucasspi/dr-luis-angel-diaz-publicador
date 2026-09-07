@@ -4,7 +4,10 @@ La pestaña **Oraciones en audio** permite arrastrar (o buscar) una nota de voz,
 escuchar la versión comprimida, escribir título y descripción, y publicarla.
 Al preparar el audio, la transcripción arranca sola si el transcriptor local
 está listo; si no, se publica sólo el audio y se ofrece configurarlo. El texto
-queda editable pero no exige revisión párrafo a párrafo. Mientras hay un audio
+queda editable (sección colapsada) pero no exige revisión párrafo a párrafo.
+Con el texto listo, Codex (la cuenta ChatGPT del Dr. Luis, igual que en las
+reflexiones) propone título y descripción; si Codex falla o está en su límite,
+no se muestra error: los campos se escriben a mano. Mientras hay un audio
 en curso, el recuadro de arrastre se oculta y un botón **Cancelar** vuelve al
 inicio (corta la transcripción si estaba en marcha). Soltar un archivo fuera del
 recuadro no hace nada: la ventana anula el drop global. Todo el flujo está en
@@ -13,7 +16,12 @@ español. No usa Codex, fal.ai ni otra API de pago (la transcripción es local).
 ## Almacenamiento y costo
 
 Se conserva S3 privado + CloudFront del sitio. Los MP3 se guardan en
-`public/audio/<uuid>.mp3` y sus fichas en `content/oraciones/<uuid>.json`.
+`public/audio/<uuid>.mp3`. La tabla de oraciones es `content/oraciones.json`
+(id, slug, título, descripción, fecha, `temaId` → `temas.json`, audio, duración,
+bytes, `transcripcion`); los párrafos van aparte en `content/oraciones/<uuid>.json`.
+Un tema tiene varias oraciones; una oración, un tema o ninguno. El tema se da de
+alta en `temas.json` dentro del mismo commit. El contrato completo está en
+`content/README.md` del sitio ("Oraciones en audio").
 El publicador hace commit/push a master; el deploy existente copia ambos al
 sitio. El catálogo público se genera en `/oraciones`, con reproductores nativos,
 descarga y enlace de WhatsApp. Los archivos sólo se solicitan al reproducir
@@ -37,6 +45,9 @@ controlan el tamaño por publicación, no constituyen un tope de facturación AW
 El historial Git crecerá con el archivo de audios; si el archivo crece mucho,
 convendrá separar los binarios del repositorio y adaptar el deploy (hoy usa
 `--delete`, por lo que un upload directo aislado a S3 sería borrado).
+
+La pestaña **Audios** lista el catálogo (título, tema, fecha, duración, texto).
+Editar y borrar desde ahí es el siguiente paso; el modelo ya lo permite.
 
 ## Activación
 
