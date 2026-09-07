@@ -51,7 +51,8 @@ function Cascara(): JSX.Element {
 
   useEffect(() => window.api.onEstadoActualizacion(setEstadoUpdate), [])
 
-  const activa = PAGINAS.find((p) => pathname.startsWith(p.ruta))?.ruta ?? PAGINAS[0].ruta
+  // Coincidencia por segmento, no por prefijo: /publicar-audio no es /publicar.
+  const activa = PAGINAS.find((p) => pathname === p.ruta || pathname.startsWith(p.ruta + '/'))?.ruta ?? PAGINAS[0].ruta
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#fff' }}>
