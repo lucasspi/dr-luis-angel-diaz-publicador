@@ -8,12 +8,12 @@ const ts = require('typescript')
 ;(async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'test-oraciones-'))
   try {
-    for (const file of ['audios', 'git', 'temas', 'slug', 'imageGen', 'transcripcion/motor', 'transcripcion/segmentos']) {
+    for (const file of ['audios', 'git', 'temas', 'slug', 'imageGen', 'publish', 'transcripcion/motor', 'transcripcion/segmentos']) {
       const source = await fs.readFile(path.join(__dirname, '../src/main/lib', `${file}.ts`), 'utf8')
       await fs.mkdir(path.dirname(path.join(root, `${file}.js`)), { recursive: true })
       await fs.writeFile(path.join(root, `${file}.js`), ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText)
     }
-    const { prepararAudio, publicarAudio, listarAudios, transcribirAudio, generarImagenAudio, quitarImagenAudio } = require(path.join(root, 'audios.js'))
+    const { prepararAudio, publicarAudio, listarAudios, transcribirAudio, generarImagenAudio, quitarImagenAudio, editarAudio } = require(path.join(root, 'audios.js'))
     const remote = path.join(root, 'remote.git'), repo = path.join(root, 'repo')
     const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
     await fs.mkdir(repo)
@@ -83,6 +83,16 @@ const ts = require('typescript')
     assert.deepEqual(cargarOraciones(repo)[0].tema, { nombre: 'Familia', slug: 'familia' })
     assert.equal(git('show', '--stat', '--format=', 'HEAD').split('\n').filter(l => l.includes('|')).length, 5)
     assert.deepEqual(cargarOraciones(repo)[0].parrafos, [{ inicio: 0, fin: 0.9, texto: 'Gracias por este día.' }, { inicio: 1.1, fin: 1.9, texto: 'Amén.' }])
+    // Editar: sólo el catálogo cambia (slug, audio y texto quedan), el tema nuevo entra en el mismo commit, y se sube.
+    await assert.rejects(editarAudio(repo, audio.id, { titulo: 'Oración <familia>', descripcion: 'Una pausa\nCon Dios', tema: 'Familia' }), /nada que cambiar/)
+    await assert.rejects(editarAudio(repo, 'no-existe', { titulo: 'x', descripcion: '', tema: '' }), /ya no está/)
+    const editada = await editarAudio(repo, audio.id, { titulo: 'Oración por la familia', descripcion: 'Editada', tema: 'Hogar' })
+    assert.equal(editada.slug, 'oracion-familia'); assert.equal(editada.temaId, 'hogar'); assert.equal(editada.transcripcion, `${audio.id}.json`)
+    assert.equal((await listarAudios(repo))[0].titulo, 'Oración por la familia')
+    assert.equal(git('rev-parse', 'origin/master'), git('rev-parse', 'HEAD')); assert.equal(git('status', '--porcelain'), '')
+    assert.deepEqual(git('show', '--stat', '--format=', 'HEAD').split('\n').filter(l => l.includes('|')).map(l => l.trim().split(' ')[0]).sort(), ['content/oraciones.json', 'content/temas.json'])
+    const sinTema = await editarAudio(repo, audio.id, { titulo: 'Oración por la familia', descripcion: 'Editada', tema: '' })
+    assert.equal(sinTema.temaId, undefined)
     await fs.rm(path.join(repo, 'public/audio', `${audio.id}.mp3`))
     assert.throws(() => cargarOraciones(repo))
     console.log('PASS: compression, malformed inputs, validation, dirty repo, push failure/retry without duplicates, catalog and missing media.')

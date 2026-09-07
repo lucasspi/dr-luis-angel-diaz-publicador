@@ -128,6 +128,8 @@ const api = {
   /** Portada 16:9 (fal.ai). Devuelve un data URL para previsualizar; la imagen entra en la publicación salvo que se quite. */
   generarImagenAudio: (id: string, prompt: string): Promise<{ preview: string }> => ipcRenderer.invoke('generar-imagen-audio', id, prompt),
   quitarImagenAudio: (id: string): Promise<void> => ipcRenderer.invoke('quitar-imagen-audio', id),
+  /** Título, descripción y tema de una oración publicada. La URL no se mueve. Commitea y sube. */
+  editarAudio: (id: string, cambios: { titulo: string; descripcion: string; tema: string }): Promise<Oracion> => ipcRenderer.invoke('editar-audio', id, cambios),
   obtenerConfig: (): Promise<ConfigInfo> => ipcRenderer.invoke('obtener-config'),
   elegirDocumento: (): Promise<string | null> => ipcRenderer.invoke('elegir-documento'),
   listarCategorias: (): Promise<string[]> => ipcRenderer.invoke('listar-categorias'),

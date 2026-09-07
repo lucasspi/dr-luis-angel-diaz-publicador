@@ -12,6 +12,7 @@ import { git, sincronizar } from './git'
 import { asegurarTema, RUTA_TEMAS } from './temas'
 import { slugificarCategoria } from './slug'
 import { generarImagen } from './imageGen'
+import { confirmar } from './publish'
 
 const ejecutar = promisify(execFile)
 const MAX_ENTRADA = 50 * 1024 * 1024
@@ -127,6 +128,40 @@ function slugUnico(titulo: string, ocupados: Set<string>): string {
   let slug = base
   for (let n = 2; ocupados.has(slug); n++) slug = `${base}-${n}`
   return slug
+}
+
+/**
+ * Edita título, descripción y tema de una oración ya publicada. Sólo el
+ * catálogo cambia: el slug (la URL), el audio y la transcripción se quedan
+ * donde están, la misma decisión que con el título de una reflexión.
+ * Sincroniza antes, commitea y sube.
+ */
+export async function editarAudio(repo: string, id: string, cambios: { titulo: string; descripcion: string; tema: string }): Promise<Oracion> {
+  return exclusivo(async () => {
+    const titulo = String(cambios.titulo ?? '').trim(), descripcion = String(cambios.descripcion ?? '').trim(), tema = String(cambios.tema ?? '').trim()
+    if (!titulo || titulo.length > 120) throw new Error('Escribe un título de hasta 120 caracteres.')
+    if (descripcion.length > 2000) throw new Error('La descripción admite hasta 2000 caracteres.')
+    if (tema.length > 120) throw new Error('El tema admite hasta 120 caracteres.')
+    const sucios = (await git(['status', '--porcelain', '--', RUTA_CATALOGO, RUTA_TEMAS], repo)).trim()
+    if (sucios) throw new Error(`Hay cambios pendientes en el catálogo de oraciones. Contacta a Lucas.\n${sucios}`)
+    await sincronizar(repo)
+    const catalogo = await leerCatalogo(repo)
+    const actual = catalogo.find(o => o.id === id)
+    if (!actual) throw new Error('Esa oración ya no está en el sitio. Pulsa Actualizar y vuelve a mirar.')
+    const { id: temaId, creado } = await asegurarTema(repo, tema)
+    if (tema && !temaId) throw new Error('El tema no es válido.')
+    const nuevo: Oracion = { ...actual, titulo, descripcion }
+    if (temaId) nuevo.temaId = temaId; else delete nuevo.temaId
+    if (JSON.stringify(nuevo) === JSON.stringify(actual)) throw new Error('No hay nada que cambiar.')
+    await writeFile(path.join(repo, RUTA_CATALOGO), JSON.stringify({ oraciones: catalogo.map(o => o.id === id ? nuevo : o) }, null, 2) + '\n')
+    try {
+      await confirmar(repo, `oración: ${titulo}`, [RUTA_CATALOGO, ...(creado ? [RUTA_TEMAS] : [])])
+    } catch (error) {
+      await git(['checkout', '--', RUTA_CATALOGO, RUTA_TEMAS], repo).catch(() => undefined)
+      throw error
+    }
+    return nuevo
+  })
 }
 
 export function textoTranscrito(id: string): string {
