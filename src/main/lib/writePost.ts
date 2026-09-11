@@ -13,12 +13,32 @@ export interface DatosPost {
   cuerpo_markdown: string
   imagenRelativa: string
   comunicar?: boolean
+  /**
+   * La versión en portugués, si la hay. Va a content/posts/pt/<mismo nombre>.md
+   * con solo lo que cambia de idioma: título, resumen, versículo y cuerpo.
+   * Fecha, tema, imagen, publicado y comunicar viven únicamente en el .md en
+   * español; el sitio los hereda. Sin `pt`, la reflexión existe solo en español.
+   *
+   * Es una carpeta aparte y no un sufijo (`.pt.md`) a propósito: todo lo que
+   * lee content/posts/ — el build del sitio, la lista de publicaciones, el
+   * borrado — filtra por `.endsWith('.md')` sobre un readdir sin recursión, y
+   * un sufijo colaría como una reflexión más. Una carpeta es invisible para
+   * todo eso, incluidas las versiones anteriores del sitio y de esta app.
+   */
+  pt?: {
+    titulo: string
+    versiculo: string
+    resumen: string
+    cuerpo_markdown: string
+  }
 }
+
+export const DIR_PT = path.join('content', 'posts', 'pt')
 
 export async function escribirPost(
   repoPath: string,
   datos: DatosPost
-): Promise<{ mdPath: string; slug: string }> {
+): Promise<{ mdPath: string; mdPathPt: string | null; slug: string }> {
   const nombreArchivo = `${datos.fecha}-${datos.slug}.md`
   const mdPath = path.join(repoPath, 'content', 'posts', nombreArchivo)
 
@@ -44,7 +64,19 @@ export async function escribirPost(
   await mkdir(path.dirname(mdPath), { recursive: true })
   await writeFile(mdPath, contenido, 'utf-8')
 
-  return { mdPath, slug: datos.slug }
+  let mdPathPt: string | null = null
+  if (datos.pt) {
+    const frontmatterPt: Record<string, unknown> = {
+      titulo: datos.pt.titulo,
+      resumen: datos.pt.resumen
+    }
+    if (datos.pt.versiculo) frontmatterPt.versiculo = datos.pt.versiculo
+    mdPathPt = path.join(repoPath, DIR_PT, nombreArchivo)
+    await mkdir(path.dirname(mdPathPt), { recursive: true })
+    await writeFile(mdPathPt, matter.stringify(`${datos.pt.cuerpo_markdown.trim()}\n`, frontmatterPt), 'utf-8')
+  }
+
+  return { mdPath, mdPathPt, slug: datos.slug }
 }
 
 async function existe(p: string): Promise<boolean> {

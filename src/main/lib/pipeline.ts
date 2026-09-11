@@ -56,7 +56,7 @@ export async function prepararDocumento(
   // La fecha de publicación es la de hoy, siempre (ver hoyISO en docExtract).
   const fecha = hoyISO()
 
-  avisar('Escribiendo la reflexión…')
+  avisar('Escribiendo la reflexión (español y portugués)…')
   const formateada = await formatearConCodex(textoBruto)
 
   // La dirección se reserva antes de escribir nada: si ya existe una reflexión
@@ -87,7 +87,7 @@ export async function publicarDocumentoPreparado(
   // sitio nunca ve un post apuntando a un tema que todavía no existe.
   const { id: temaId, creado: temaNuevo } = await asegurarTema(config.repoPath, categoria)
 
-  const { mdPath } = await escribirPost(config.repoPath, {
+  const { mdPath, mdPathPt } = await escribirPost(config.repoPath, {
     titulo: formateada.titulo,
     fecha,
     temaId,
@@ -96,7 +96,8 @@ export async function publicarDocumentoPreparado(
     slug,
     cuerpo_markdown: formateada.cuerpo_markdown,
     imagenRelativa,
-    comunicar
+    comunicar,
+    pt: formateada.pt
   })
 
   await registrarReflexion(config.repoPath, {
@@ -111,6 +112,7 @@ export async function publicarDocumentoPreparado(
     path.relative(config.repoPath, imagenAbsoluta),
     RUTA_CATALOGO
   ]
+  if (mdPathPt) archivos.push(path.relative(config.repoPath, mdPathPt))
   if (temaNuevo) archivos.push(RUTA_TEMAS)
   await publicar(config.repoPath, formateada.titulo, archivos, adiarEnvio)
 

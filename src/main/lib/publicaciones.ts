@@ -23,6 +23,8 @@ export interface Publicacion {
   thumbUrl: string
   url: string
   archivo: string
+  /** 'es' siempre; 'pt' si existe content/posts/pt/<archivo>. */
+  idiomas: string[]
 }
 
 const BASE_URL = 'https://drluisangeldiaz.com'
@@ -84,6 +86,14 @@ export async function listarPublicaciones(repoPath: string): Promise<Publicacion
     return []
   }
 
+  // Las versiones en portugués viven en la subcarpeta pt/ con el mismo nombre.
+  let conPt = new Set<string>()
+  try {
+    conPt = new Set(await readdir(path.join(dir, 'pt')))
+  } catch {
+    // sin carpeta pt/: ninguna reflexión tiene versión en portugués
+  }
+
   const temas = await leerTemas(repoPath)
   // La URL sale del catálogo, igual que en el sitio: derivarla del nombre del
   // archivo por segunda vez sería otra fuente que puede discrepar.
@@ -114,7 +124,8 @@ export async function listarPublicaciones(repoPath: string): Promise<Publicacion
         imagen,
         thumbUrl: urlImagen(imagen),
         url: `${BASE_URL}/${slug}`,
-        archivo
+        archivo,
+        idiomas: conPt.has(archivo) ? ['es', 'pt'] : ['es']
       })
     } catch {
       // un .md malformado no debe tumbar la lista entera

@@ -115,7 +115,14 @@ export default function Publicaciones(): JSX.Element {
       sorter: (a, b) => a.titulo.localeCompare(b.titulo, 'es'),
       render: (titulo: string, p) => (
         <Tooltip title={p.resumen || undefined} mouseEnterDelay={0.5}>
-          <Text strong>{titulo}</Text>
+          <Space size={6}>
+            <Text strong>{titulo}</Text>
+            {p.idiomas.includes('pt') && (
+              <Tooltip title="También en portugués (drluisangeldiaz.com/pt/…)">
+                <Tag style={{ marginInlineEnd: 0 }}>PT</Tag>
+              </Tooltip>
+            )}
+          </Space>
         </Tooltip>
       )
     },

@@ -4,6 +4,15 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 
+/** La misma reflexión en portugués de Brasil: solo lo que cambia de idioma.
+ *  Fecha, tema, imagen y slug son los del español (ver writePost.ts). */
+export interface ReflexionPt {
+  titulo: string
+  versiculo: string
+  resumen: string
+  cuerpo_markdown: string
+}
+
 export interface ReflexionFormateada {
   titulo: string
   versiculo: string
@@ -11,9 +20,11 @@ export interface ReflexionFormateada {
   slug: string
   cuerpo_markdown: string
   image_prompt: string
+  pt: ReflexionPt
 }
 
 const CAMPOS_REQUERIDOS = ['titulo', 'resumen', 'slug', 'cuerpo_markdown', 'image_prompt'] as const
+const CAMPOS_REQUERIDOS_PT = ['titulo', 'resumen', 'cuerpo_markdown'] as const
 
 // Los Word originales numeran la serie ("Devocional 12: …"); en el sitio el
 // título va directo, sin esa numeración (ver content/README.md del sitio).
@@ -38,9 +49,20 @@ const OUTPUT_SCHEMA = {
     resumen: { type: 'string' },
     slug: { type: 'string' },
     cuerpo_markdown: { type: 'string' },
-    image_prompt: { type: 'string' }
+    image_prompt: { type: 'string' },
+    pt: {
+      type: 'object',
+      properties: {
+        titulo: { type: 'string' },
+        versiculo: { type: 'string' },
+        resumen: { type: 'string' },
+        cuerpo_markdown: { type: 'string' }
+      },
+      required: ['titulo', 'versiculo', 'resumen', 'cuerpo_markdown'],
+      additionalProperties: false
+    }
   },
-  required: ['titulo', 'versiculo', 'resumen', 'slug', 'cuerpo_markdown', 'image_prompt'],
+  required: ['titulo', 'versiculo', 'resumen', 'slug', 'cuerpo_markdown', 'image_prompt', 'pt'],
   additionalProperties: false
 }
 
@@ -54,6 +76,7 @@ Tu tarea:
 4. Escribe un "titulo": corto, fiel al contenido, sin inventar promesas que el texto no hace. El título va directo, SIN prefijos de numeración o de serie: si el documento original se titula "Devocional 12: La integridad del líder" (o "Reflexión N.º 3 —", etc.), el titulo es solo "La integridad del líder". Ese número de serie no debe aparecer en titulo, slug ni cuerpo_markdown.
 5. Genera un "slug": el título en minúsculas, sin tildes ni caracteres especiales, con guiones en vez de espacios (ej: "un-corazon-disponible").
 6. Escribe un "image_prompt": descripción en inglés de una imagen 16:9 que acompañe la reflexión — tono de luz suave y esperanza, sin rostros reconocibles, sin texto en la imagen.
+7. Escribe el objeto "pt": la MISMA reflexión en portugués de Brasil, con "titulo", "versiculo", "resumen" y "cuerpo_markdown". Es una traducción fiel del texto final en español que escribiste en el punto 1 — misma estructura, mismos encabezados, mismas citas, nada añadido ni quitado. Natural y cuidado, como lo escribiría un pastor brasileño; sin portuñol. Las citas bíblicas van con el texto de la Nova Versão Internacional (NVI) en portugués cuando lo conozcas con seguridad; si no, tradúcelas fielmente desde el español. La referencia ("versiculo") va con el nombre del libro en portugués (ej: "João 6:37", "Filipenses 4:6-7"); si en español quedó vacía, en portugués también. El "resumen" en portugués también tiene menos de 160 caracteres. El título en portugués tampoco lleva numeración de serie.
 
 Tu respuesta final (el último mensaje) debe ser únicamente el JSON con esos campos, siguiendo exactamente el schema dado. No crees ni escribas ningún archivo tú mismo: la respuesta se guarda sola en output.json.`
 
@@ -78,8 +101,22 @@ export async function formatearConCodex(textoBruto: string): Promise<ReflexionFo
       throw new Error('La reflexión generada quedó demasiado corta — parece una respuesta incompleta. Intenta de nuevo.')
     }
 
+    if (!parsed.pt || typeof parsed.pt !== 'object') {
+      throw new Error('Codex no completó la versión en portugués ("pt"). Intenta de nuevo.')
+    }
+    for (const campo of CAMPOS_REQUERIDOS_PT) {
+      if (!parsed.pt[campo]) {
+        throw new Error(`Codex no completó el campo "pt.${campo}" de la versión en portugués. Intenta de nuevo.`)
+      }
+    }
+    if (parsed.pt.cuerpo_markdown.length < 200) {
+      throw new Error('La versión en portugués quedó demasiado corta — parece una respuesta incompleta. Intenta de nuevo.')
+    }
+
     parsed.titulo = quitarPrefijoSerie(parsed.titulo)
     parsed.slug = quitarPrefijoSerieDeSlug(parsed.slug)
+    parsed.pt.titulo = quitarPrefijoSerie(parsed.pt.titulo)
+    parsed.pt.versiculo = typeof parsed.pt.versiculo === 'string' ? parsed.pt.versiculo.trim() : ''
 
     return parsed
   } finally {

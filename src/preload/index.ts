@@ -87,6 +87,8 @@ export interface Publicacion {
   thumbUrl: string
   url: string
   archivo: string
+  /** 'es' siempre; 'pt' cuando la reflexión tiene versión en portugués. */
+  idiomas: string[]
 }
 
 export interface ResultadoBorrado {

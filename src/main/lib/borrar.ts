@@ -3,6 +3,7 @@ import path from 'node:path'
 import matter from 'gray-matter'
 import { git } from './git'
 import { olvidarReflexion, RUTA_CATALOGO } from './reflexiones'
+import { DIR_PT } from './writePost'
 
 export interface ResultadoBorrado {
   archivo: string
@@ -59,7 +60,9 @@ export async function borrarPublicacion(
   }
 
   const borrarImagen = imagen !== '' && compartidaCon.length === 0
-  const aQuitar = [path.join('content', 'posts', archivo)]
+  // La versión en portugués (content/posts/pt/<mismo nombre>) se va con ella;
+  // --ignore-unmatch cubre las reflexiones que nunca la tuvieron.
+  const aQuitar = [path.join('content', 'posts', archivo), path.join(DIR_PT, archivo)]
   if (borrarImagen) aQuitar.push(path.join('public', imagen.replace(/^\//, '')))
 
   // --ignore-unmatch: si la portada ya no estaba en disco, el borrado del .md
