@@ -1,6 +1,6 @@
 import path from 'node:path'
 import type { BrowserWindow } from 'electron'
-import { detectarFechaDocumento, extractDocument } from './docExtract'
+import { extractDocument, hoyISO } from './docExtract'
 import { formatearConCodex } from './codexFormat'
 import { generarImagen } from './imageGen'
 import { escribirPost } from './writePost'
@@ -48,13 +48,13 @@ export async function prepararDocumento(
 
   if (!config.falApiKey) throw new Error('Falta la clave de fal.ai para las portadas de reflexiones. Las oraciones en audio no la necesitan.')
   avisar('Leyendo el documento…')
-  const { texto: textoBruto, fechaMetadatos } = await extractDocument(filePath)
+  const textoBruto = await extractDocument(filePath)
   if (textoBruto.length < 20) {
     throw new Error('El documento parece estar vacío o no se pudo leer el texto.')
   }
 
-  const { fecha, origen } = await detectarFechaDocumento(filePath, textoBruto, fechaMetadatos)
-  avisar(`Fecha detectada: ${fecha} (${origen})`)
+  // La fecha de publicación es la de hoy, siempre (ver hoyISO en docExtract).
+  const fecha = hoyISO()
 
   avisar('Escribiendo la reflexión…')
   const formateada = await formatearConCodex(textoBruto)

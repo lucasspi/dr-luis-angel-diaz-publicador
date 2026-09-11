@@ -25,7 +25,6 @@ type Preparacion =
 
 function porcentajePara(mensaje: string): number {
   if (mensaje.startsWith('Leyendo')) return 10
-  if (mensaje.startsWith('Fecha detectada')) return 20
   if (mensaje.startsWith('Escribiendo')) return 30
   if (mensaje.startsWith('Generando')) return 55
   if (mensaje.startsWith('Guardando')) return 82
