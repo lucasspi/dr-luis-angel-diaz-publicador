@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.5.0
+
+- Cada reflexión nueva se publica también en portugués: Codex devuelve las dos versiones en la misma pasada y la portuguesa va a `content/posts/pt/` (el sitio la sirve en `/pt/<slug>` cuando esté actualizado).
+- Selo «PT» en la lista de publicaciones; al borrar una reflexión se va también su versión en portugués.
+- La fecha de publicación vuelve a ser la de hoy, siempre. Ya no se adivina la fecha del documento (eso mandaba reflexiones nuevas al fondo del índice).
+
 ## 0.4.3
 
 - Sincronización manual de suscriptores con Resend desde Configuración.
